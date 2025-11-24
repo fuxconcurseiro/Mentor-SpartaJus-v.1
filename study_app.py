@@ -598,7 +598,6 @@ def main_app():
 
         with col_tree:
             st.subheader("Árvore da Constância")
-            # --- CORREÇÃO: Removido quebra de linha para evitar bug visual ---
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             
             # --- RECADO DO MODERADOR ---
@@ -870,6 +869,102 @@ def main_app():
                 st.rerun()
         else:
             st.warning("Nenhum registro encontrado.")
+
+    # --- ABA 3: RANKING GLOBAL (COMUNIDADE) ---
+    with tab3:
+        st.header("🏆 Hall da Fama Espartano")
+        st.caption("Classificação baseada no total de Questões.")
+        
+        all_db = load_db()
+        community_data = []
+        
+        for u_name, u_data in all_db.items():
+            u_logs = u_data.get('logs', [])
+            tot_q = sum(l.get('questoes', 0) for l in u_logs)
+            tot_p = sum(l.get('paginas', 0) for l in u_logs)
+            u_streak = calculate_streak(u_logs)
+            patente = get_patent(tot_q)
+            
+            total_min = 0
+            for l in u_logs:
+                for m in l.get('materias', []):
+                    if '-' in m:
+                        total_min += parse_time_str_to_min(m.split('-', 1)[0])
+            total_hours = round(total_min / 60, 1)
+            
+            community_data.append({
+                "Espartano": u_name,
+                "Patente": patente,
+                "Questões": tot_q,
+                "Páginas": tot_p,
+                "Fogo (Dias)": u_streak,
+                "Tempo Total (h)": total_hours
+            })
+            
+        if community_data:
+            df_comm = pd.DataFrame(community_data)
+            # Ordenar por Questões (Ranking)
+            df_comm = df_comm.sort_values(by="Questões", ascending=False).reset_index(drop=True)
+            df_comm.index += 1 
+            df_comm.index.name = "Rank"
+            
+            # --- PÓDIO ---
+            top_users = df_comm.head(3)
+            if not top_users.empty:
+                cols = st.columns([1, 1, 1])
+                
+                # Prata (2º Lugar) - Esquerda
+                if len(top_users) >= 2:
+                    with cols[0]:
+                        u2 = top_users.iloc[1]
+                        st.markdown(f"""
+                        <div class="podium-silver">
+                            <h2>🥈 2º Lugar</h2>
+                            <h3>{u2['Espartano']}</h3>
+                            <p>{u2['Questões']} Questões</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # Ouro (1º Lugar) - Centro
+                if len(top_users) >= 1:
+                    with cols[1]:
+                        u1 = top_users.iloc[0]
+                        st.markdown(f"""
+                        <div class="podium-gold">
+                            <h1>🥇 1º Lugar</h1>
+                            <h2>{u1['Espartano']}</h2>
+                            <p><strong>{u1['Patente']}</strong></p>
+                            <p>{u1['Questões']} Questões</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # Bronze (3º Lugar) - Direita
+                if len(top_users) >= 3:
+                    with cols[2]:
+                        u3 = top_users.iloc[2]
+                        st.markdown(f"""
+                        <div class="podium-bronze">
+                            <h2>🥉 3º Lugar</h2>
+                            <h3>{u3['Espartano']}</h3>
+                            <p>{u3['Questões']} Questões</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+            
+            st.divider()
+            st.subheader("Classificação Geral")
+            
+            # Tabela Completa
+            def highlight_self(row):
+                if row['Espartano'] == user:
+                    return ['background-color: #5C4033; color: white'] * len(row)
+                return [''] * len(row)
+
+            st.dataframe(
+                df_comm.style.apply(highlight_self, axis=1), 
+                use_container_width=True
+            )
+        else:
+            st.info("Nenhum dado comunitário disponível.")
 
     # --- ABA 4: ORÁCULO ---
     with tab4:
