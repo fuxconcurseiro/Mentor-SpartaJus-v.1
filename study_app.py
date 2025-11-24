@@ -24,7 +24,6 @@ DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
 
 # --- SEGURANÇA DA API KEY ---
-# Chave ofuscada em Base64 (Sua chave original)
 ENCRYPTED_KEY = "QUl6YVN5RFI1VTdHeHNCZVVVTFE5M1N3UG9VNl9CaGl3VHZzMU9n"
 
 def get_api_key():
@@ -989,28 +988,29 @@ def main_app():
                     with st.spinner("Consultando..."):
                         try:
                             genai.configure(api_key=st.session_state.api_key)
-                            # LOGICA INTELIGENTE DE FALLBACK DE MODELOS
-                            try:
-                                # Tenta modelo PRO (Padrão robusto)
-                                model = genai.GenerativeModel('gemini-pro', 
-                                    system_instruction=ORACLE_SYSTEM_PROMPT)
-                                response = model.generate_content(prompt)
-                            except Exception:
-                                # Se falhar, tenta o modelo Flash (mais recente)
-                                model = genai.GenerativeModel('gemini-1.5-flash', 
-                                    system_instruction=ORACLE_SYSTEM_PROMPT)
-                                response = model.generate_content(prompt)
+                            # LOGICA INTELIGENTE DE FALLBACK DE MODELOS (Loop de tentativas)
+                            models_to_try = ["gemini-1.5-flash", "gemini-pro"]
+                            response = None
+                            last_error = None
 
-                            clean_text = remove_markdown(response.text)
-                            st.write(clean_text)
-                            st.session_state.chat_history.append({"role": "assistant", "content": clean_text})
-                        except Exception as e:
-                            # Tratamento de erro melhorado
-                            error_msg = str(e)
-                            if "429" in error_msg:
-                                st.warning("⏳ O Oráculo está sobrecarregado (Cota da API excedida). Aguarde alguns segundos e tente novamente.")
+                            for model_name in models_to_try:
+                                try:
+                                    model = genai.GenerativeModel(model_name, system_instruction=ORACLE_SYSTEM_PROMPT)
+                                    response = model.generate_content(prompt)
+                                    break # Sucesso, sai do loop
+                                except Exception as e:
+                                    last_error = e
+                                    continue # Tenta o proximo
+                            
+                            if response:
+                                clean_text = remove_markdown(response.text)
+                                st.write(clean_text)
+                                st.session_state.chat_history.append({"role": "assistant", "content": clean_text})
                             else:
-                                st.error(f"Erro: {e}")
+                                st.error(f"Erro ao conectar com os modelos de IA. Detalhe: {last_error}")
+
+                        except Exception as e:
+                            st.error(f"Erro geral: {e}")
 
 # --- CONTROLE DE FLUXO LOGIN ---
 if 'user' not in st.session_state:
