@@ -991,13 +991,13 @@ def main_app():
                             genai.configure(api_key=st.session_state.api_key)
                             # LOGICA INTELIGENTE DE FALLBACK DE MODELOS
                             try:
-                                # Tenta modelo FLASH primeiro
-                                model = genai.GenerativeModel('gemini-1.5-flash', 
+                                # Tenta modelo PRO (Padrão robusto)
+                                model = genai.GenerativeModel('gemini-pro', 
                                     system_instruction=ORACLE_SYSTEM_PROMPT)
                                 response = model.generate_content(prompt)
                             except Exception:
-                                # Se falhar, tenta o modelo PRO (mais garantido)
-                                model = genai.GenerativeModel('gemini-pro', 
+                                # Se falhar, tenta o modelo Flash (mais recente)
+                                model = genai.GenerativeModel('gemini-1.5-flash', 
                                     system_instruction=ORACLE_SYSTEM_PROMPT)
                                 response = model.generate_content(prompt)
 
