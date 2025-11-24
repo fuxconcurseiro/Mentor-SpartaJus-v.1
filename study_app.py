@@ -730,37 +730,40 @@ def main_app():
                     
                     # Ajuste no tamanho da figura para acomodar legenda
                     fig, ax = plt.subplots(figsize=(6, 3)) 
-                    fig.patch.set_facecolor('#708090') 
-                    ax.set_facecolor('#708090')
+                    # --- FUNDO CLARO (#F2F6FA) ---
+                    fig.patch.set_facecolor('#F2F6FA') 
+                    ax.set_facecolor('#F2F6FA')
                     
-                    colors = ['#D4AF37', '#8B4513', '#CD853F', '#F4A460', '#DAA520', '#556B2F']
+                    # --- CORES VIBRANTES ---
+                    colors = ['#FF0033', '#00FF33', '#3366FF', '#FF33FF', '#FFFF33', '#00FFFF', '#FF9933', '#9933FF']
                     
                     # Cria a pizza sem labels diretos (labels=None)
                     wedges, texts, autotexts = ax.pie(
                         sizes, labels=None, autopct='%1.1f%%', 
                         startangle=90, colors=colors[:len(labels)],
-                        textprops={'color':"#C2D5ED", 'fontsize': 8} 
+                        # Texto dentro da pizza em PRETO para contraste com fundo claro
+                        textprops={'color':"#333333", 'fontsize': 8, 'weight': 'bold'} 
                     )
                     
                     # Legenda Lateral
-                    ax.legend(wedges, labels,
+                    leg = ax.legend(wedges, labels,
                               title="Matérias",
                               loc="center left",
                               bbox_to_anchor=(1, 0, 0.5, 1),
                               frameon=False,
-                              labelcolor='#C2D5ED',
+                              labelcolor='#333333', # Texto da legenda escuro
                               title_fontsize='small')
-                    plt.setp(ax.get_legend().get_title(), color='#C2D5ED')
+                    plt.setp(leg.get_title(), color='#333333') # Título da legenda escuro
 
-                    for text in texts: text.set_color('#C2D5ED')
-                    for autotext in autotexts: autotext.set_color('#121212')
+                    for text in texts: text.set_color('#333333')
+                    for autotext in autotexts: autotext.set_color('#333333')
                     
                     ax.axis('equal') 
                     st.pyplot(fig)
                 else:
                     st.info("Sem dados de tempo/matéria para este período.")
             
-                # --- GRÁFICO: EVOLUÇÃO DE QUESTÕES (Corrigido e Diminuído) ---
+                # --- GRÁFICO: EVOLUÇÃO DE QUESTÕES ---
                 st.subheader("📈 Evolução de Questões")
                 
                 df_line = df_filtered.copy()
@@ -769,25 +772,32 @@ def main_app():
                 if not df_line.empty:
                     # Reduzindo a altura (figsize=(6, 2))
                     fig_line, ax_line = plt.subplots(figsize=(6, 2)) 
-                    fig_line.patch.set_facecolor('#708090') 
-                    ax_line.set_facecolor('#708090')
+                    # --- FUNDO CLARO (#F2F6FA) ---
+                    fig_line.patch.set_facecolor('#F2F6FA') 
+                    ax_line.set_facecolor('#F2F6FA')
                     
                     # Agrupar por data para somar questões do mesmo dia se houver duplicidade
                     df_line_grouped = df_line.groupby('data_obj')['questoes'].sum().reset_index()
                     
-                    ax_line.plot(df_line_grouped['data_obj'], df_line_grouped['questoes'], marker='o', linestyle='-', color='#D4AF37', linewidth=2, markersize=5)
+                    # --- LINHA VIBRANTE (AZUL REAL) ---
+                    ax_line.plot(df_line_grouped['data_obj'], df_line_grouped['questoes'], 
+                                 marker='o', linestyle='-', color='#0044FF', # Azul vibrante
+                                 linewidth=2, markersize=6, markerfacecolor='#FF0000') # Marcador vermelho
                     
                     # Formatação de Data no Eixo X
                     ax_line.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m'))
-                    ax_line.tick_params(axis='x', colors='#C2D5ED', rotation=45, labelsize=8)
-                    ax_line.tick_params(axis='y', colors='#C2D5ED', labelsize=8)
+                    # Labels dos eixos em PRETO/CINZA ESCURO
+                    ax_line.tick_params(axis='x', colors='#333333', rotation=45, labelsize=8)
+                    ax_line.tick_params(axis='y', colors='#333333', labelsize=8)
                     
                     ax_line.spines['top'].set_visible(False)
                     ax_line.spines['right'].set_visible(False)
-                    ax_line.spines['bottom'].set_color('#C2D5ED')
-                    ax_line.spines['left'].set_color('#C2D5ED')
+                    # Spines em CINZA ESCURO
+                    ax_line.spines['bottom'].set_color('#333333')
+                    ax_line.spines['left'].set_color('#333333')
                     
-                    ax_line.grid(color='#C2D5ED', linestyle=':', linewidth=0.5, alpha=0.3)
+                    # Grid suave escuro
+                    ax_line.grid(color='#333333', linestyle=':', linewidth=0.5, alpha=0.2)
                     
                     # Rotaciona datas automaticamente para não encavalar
                     fig_line.autofmt_xdate()
@@ -868,96 +878,6 @@ def main_app():
         else:
             st.warning("Nenhum registro encontrado.")
 
-    # --- ABA 3: RANKING GLOBAL (COMUNIDADE) ---
-    with tab3:
-        st.header("🏆 Hall da Fama Espartano")
-        st.caption("Classificação baseada no total de Questões.")
-        
-        all_db = load_db()
-        community_data = []
-        
-        for u_name, u_data in all_db.items():
-            u_logs = u_data.get('logs', [])
-            tot_q = sum(l.get('questoes', 0) for l in u_logs)
-            tot_p = sum(l.get('paginas', 0) for l in u_logs)
-            u_streak = calculate_streak(u_logs)
-            patente = get_patent(tot_q)
-            
-            total_min = 0
-            for l in u_logs:
-                for m in l.get('materias', []):
-                    if '-' in m:
-                        total_min += parse_time_str_to_min(m.split('-', 1)[0])
-            total_hours = round(total_min / 60, 1)
-            
-            community_data.append({
-                "Espartano": u_name,
-                "Patente": patente,
-                "Questões": tot_q,
-                "Páginas": tot_p,
-                "Fogo (Dias)": u_streak,
-                "Tempo Total (h)": total_hours
-            })
-            
-        if community_data:
-            df_comm = pd.DataFrame(community_data)
-            df_comm = df_comm.sort_values(by="Questões", ascending=False).reset_index(drop=True)
-            df_comm.index += 1 
-            df_comm.index.name = "Rank"
-            
-            top_users = df_comm.head(3)
-            if not top_users.empty:
-                cols = st.columns([1, 1, 1])
-                
-                if len(top_users) >= 2:
-                    with cols[0]:
-                        u2 = top_users.iloc[1]
-                        st.markdown(f"""
-                        <div class="podium-silver">
-                            <h2>🥈 2º Lugar</h2>
-                            <h3>{u2['Espartano']}</h3>
-                            <p>{u2['Questões']} Questões</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                
-                if len(top_users) >= 1:
-                    with cols[1]:
-                        u1 = top_users.iloc[0]
-                        st.markdown(f"""
-                        <div class="podium-gold">
-                            <h1>🥇 1º Lugar</h1>
-                            <h2>{u1['Espartano']}</h2>
-                            <p><strong>{u1['Patente']}</strong></p>
-                            <p>{u1['Questões']} Questões</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                
-                if len(top_users) >= 3:
-                    with cols[2]:
-                        u3 = top_users.iloc[2]
-                        st.markdown(f"""
-                        <div class="podium-bronze">
-                            <h2>🥉 3º Lugar</h2>
-                            <h3>{u3['Espartano']}</h3>
-                            <p>{u3['Questões']} Questões</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-            
-            st.divider()
-            st.subheader("Classificação Geral")
-            
-            def highlight_self(row):
-                if row['Espartano'] == user:
-                    return ['background-color: #5C4033; color: white'] * len(row)
-                return [''] * len(row)
-
-            st.dataframe(
-                df_comm.style.apply(highlight_self, axis=1), 
-                use_container_width=True
-            )
-        else:
-            st.info("Nenhum dado comunitário disponível.")
-
     # --- ABA 4: ORÁCULO ---
     with tab4:
         st.subheader("🤖 Oráculo SpartaJus")
@@ -980,14 +900,20 @@ def main_app():
                     with st.spinner("Consultando..."):
                         try:
                             genai.configure(api_key=st.session_state.api_key)
-                            model = genai.GenerativeModel('gemini-2.0-flash-exp', 
+                            # MUDANÇA AQUI: Modelo mais estável e com melhores cotas
+                            model = genai.GenerativeModel('gemini-1.5-flash', 
                                 system_instruction=ORACLE_SYSTEM_PROMPT)
                             response = model.generate_content(prompt)
                             clean_text = remove_markdown(response.text)
                             st.write(clean_text)
                             st.session_state.chat_history.append({"role": "assistant", "content": clean_text})
                         except Exception as e:
-                            st.error(f"Erro: {e}")
+                            # Tratamento de erro melhorado
+                            error_msg = str(e)
+                            if "429" in error_msg:
+                                st.warning("⏳ O Oráculo está sobrecarregado (Cota da API excedida). Aguarde alguns segundos e tente novamente.")
+                            else:
+                                st.error(f"Erro: {e}")
 
 # --- CONTROLE DE FLUXO LOGIN ---
 if 'user' not in st.session_state:
