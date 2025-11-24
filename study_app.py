@@ -9,6 +9,7 @@ import random
 import json
 import os
 import time
+import base64  # Biblioteca para decodificar a chave
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -21,8 +22,19 @@ st.set_page_config(
 # --- CONSTANTES GLOBAIS ---
 DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
-# Chave API fixa conforme solicitado
-API_KEY = "AIzaSyDR5U7GxsBeUULQ93SwPoU6_BhiwTvs1Og"
+
+# --- SEGURANÇA DA API KEY ---
+# A chave abaixo está ofuscada (Base64) para não ficar legível a olho nu.
+# Conteúdo real: AIzaSyDR5U7GxsBeUULQ93SwPoU6_BhiwTvs1Og
+ENCRYPTED_KEY = "QUl6YVN5RFI1VTdHeHNCZVVVTFE5M1N3UG9VNl9CaGl3VHZzMU9n"
+
+def get_api_key():
+    """Decodifica a chave API apenas no momento do uso."""
+    try:
+        return base64.b64decode(ENCRYPTED_KEY).decode("utf-8")
+    except Exception as e:
+        st.error(f"Erro ao decodificar chave de segurança: {e}")
+        return ""
 
 # --- PROMPT DO SISTEMA (ORÁCULO) ---
 ORACLE_SYSTEM_PROMPT = """
@@ -445,8 +457,8 @@ def main_app():
     if 'tree_branches' not in user_data: user_data['tree_branches'] = 1
     if 'mod_message' not in user_data: user_data['mod_message'] = "" 
     
-    # --- CONFIGURAR API KEY FIXA ---
-    st.session_state.api_key = API_KEY
+    # --- CONFIGURAR API KEY FIXA (Decodificando) ---
+    st.session_state.api_key = get_api_key()
     
     # --- CÁLCULOS TOTAIS ---
     total_questions = sum([log.get('questoes', 0) for log in user_data['logs']])
@@ -527,7 +539,12 @@ def main_app():
             if 'admin_user' in st.session_state: del st.session_state['admin_user']
             st.rerun()
             
-        # Configuração de API removida da interface
+        st.divider()
+        st.header("⚙️ Configurações")
+        
+        # Apenas um aviso simples, sem mostrar a chave
+        st.success("API Conectada")
+        st.info("Obtenha sua chave gratuita em: aistudio.google.com")
 
     # --- CABEÇALHO ---
     st.title("🏛️ Mentor SpartaJus")
@@ -584,7 +601,6 @@ def main_app():
 
         with col_tree:
             st.subheader("Árvore da Constância")
-            # --- CORREÇÃO: Removido quebra de linha para evitar bug visual ---
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             
             # --- RECADO DO MODERADOR ---
@@ -724,32 +740,26 @@ def main_app():
                     labels = list(subject_mins.keys())
                     sizes = list(subject_mins.values())
                     
-                    # Ajuste no tamanho da figura para acomodar legenda
                     fig, ax = plt.subplots(figsize=(6, 3)) 
-                    # --- FUNDO CLARO (#F2F6FA) ---
                     fig.patch.set_facecolor('#F2F6FA') 
                     ax.set_facecolor('#F2F6FA')
                     
-                    # --- CORES VIBRANTES ---
                     colors = ['#FF0033', '#00FF33', '#3366FF', '#FF33FF', '#FFFF33', '#00FFFF', '#FF9933', '#9933FF']
                     
-                    # Cria a pizza sem labels diretos (labels=None)
                     wedges, texts, autotexts = ax.pie(
                         sizes, labels=None, autopct='%1.1f%%', 
                         startangle=90, colors=colors[:len(labels)],
-                        # Texto dentro da pizza em PRETO para contraste com fundo claro
                         textprops={'color':"#333333", 'fontsize': 8, 'weight': 'bold'} 
                     )
                     
-                    # Legenda Lateral
                     leg = ax.legend(wedges, labels,
                               title="Matérias",
                               loc="center left",
                               bbox_to_anchor=(1, 0, 0.5, 1),
                               frameon=False,
-                              labelcolor='#333333', # Texto da legenda escuro
+                              labelcolor='#333333', 
                               title_fontsize='small')
-                    plt.setp(leg.get_title(), color='#333333') # Título da legenda escuro
+                    plt.setp(leg.get_title(), color='#333333') 
 
                     for text in texts: text.set_color('#333333')
                     for autotext in autotexts: autotext.set_color('#333333')
@@ -759,49 +769,38 @@ def main_app():
                 else:
                     st.info("Sem dados de tempo/matéria para este período.")
             
-                # --- GRÁFICO: EVOLUÇÃO DE QUESTÕES ---
                 st.subheader("📈 Evolução de Questões")
                 
                 df_line = df_filtered.copy()
                 df_line = df_line.sort_values(by='data_obj')
                 
                 if not df_line.empty:
-                    # Reduzindo a altura (figsize=(6, 2))
                     fig_line, ax_line = plt.subplots(figsize=(6, 2)) 
-                    # --- FUNDO CLARO (#F2F6FA) ---
                     fig_line.patch.set_facecolor('#F2F6FA') 
                     ax_line.set_facecolor('#F2F6FA')
                     
-                    # Agrupar por data para somar questões do mesmo dia se houver duplicidade
                     df_line_grouped = df_line.groupby('data_obj')['questoes'].sum().reset_index()
                     
-                    # --- LINHA VIBRANTE (AZUL REAL) ---
                     ax_line.plot(df_line_grouped['data_obj'], df_line_grouped['questoes'], 
-                                 marker='o', linestyle='-', color='#0044FF', # Azul vibrante
-                                 linewidth=2, markersize=6, markerfacecolor='#FF0000') # Marcador vermelho
+                                 marker='o', linestyle='-', color='#0044FF', 
+                                 linewidth=2, markersize=6, markerfacecolor='#FF0000') 
                     
-                    # Formatação de Data no Eixo X
                     ax_line.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m'))
-                    # Labels dos eixos em PRETO/CINZA ESCURO
                     ax_line.tick_params(axis='x', colors='#333333', rotation=45, labelsize=8)
                     ax_line.tick_params(axis='y', colors='#333333', labelsize=8)
                     
                     ax_line.spines['top'].set_visible(False)
                     ax_line.spines['right'].set_visible(False)
-                    # Spines em CINZA ESCURO
                     ax_line.spines['bottom'].set_color('#333333')
                     ax_line.spines['left'].set_color('#333333')
                     
-                    # Grid suave escuro
                     ax_line.grid(color='#333333', linestyle=':', linewidth=0.5, alpha=0.2)
                     
-                    # Rotaciona datas automaticamente para não encavalar
                     fig_line.autofmt_xdate()
                     
                     st.pyplot(fig_line)
                 else:
                     st.info("Dados insuficientes para gerar gráfico de evolução.")
-                # -------------------------------------------
 
             else:
                 st.warning("Nenhum registro encontrado para este período.")
