@@ -18,9 +18,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- ARQUIVO DE BANCO DE DADOS LOCAL ---
+# --- CONSTANTES GLOBAIS ---
 DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
+# Chave API fixa conforme solicitado
+API_KEY = "AIzaSyDR5U7GxsBeUULQ93SwPoU6_BhiwTvs1Og"
 
 # --- PROMPT DO SISTEMA (ORÁCULO) ---
 ORACLE_SYSTEM_PROMPT = """
@@ -438,9 +440,13 @@ def main_app():
         is_admin_mode = True
         admin_name = st.session_state['admin_user']
 
+    # Garantir chaves básicas no JSON
     if 'logs' not in user_data: user_data['logs'] = []
     if 'tree_branches' not in user_data: user_data['tree_branches'] = 1
     if 'mod_message' not in user_data: user_data['mod_message'] = "" 
+    
+    # --- CONFIGURAR API KEY FIXA ---
+    st.session_state.api_key = API_KEY
     
     # --- CÁLCULOS TOTAIS ---
     total_questions = sum([log.get('questoes', 0) for log in user_data['logs']])
@@ -521,17 +527,7 @@ def main_app():
             if 'admin_user' in st.session_state: del st.session_state['admin_user']
             st.rerun()
             
-        st.divider()
-        st.header("⚙️ Configurações")
-        
-        if 'api_key' not in st.session_state:
-            st.session_state.api_key = ""
-            
-        api_key_input = st.text_input("Chave API do Gemini", type="password", value=st.session_state.api_key)
-        if api_key_input:
-            st.session_state.api_key = api_key_input
-        
-        st.info("Obtenha sua chave gratuita em: aistudio.google.com")
+        # Configuração de API removida da interface
 
     # --- CABEÇALHO ---
     st.title("🏛️ Mentor SpartaJus")
