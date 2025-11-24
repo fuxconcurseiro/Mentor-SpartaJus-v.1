@@ -21,6 +21,33 @@ st.set_page_config(
 DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
 
+# --- PROMPT DO SISTEMA (ORÁCULO) ---
+ORACLE_SYSTEM_PROMPT = """
+Responda como um especialista em concursos públicos jurídicos na área do direito, principalmente ministério público, magistratura e procuradorias de estado e capitais municipais, considere também uma vasta experiência como membro presidente de diversas bancas examinadoras ao longo de 15 anos, aprovado em diversos concursos de carreira, especialista em responder provas discursivas com objetividade e assertividade.
+Portanto, todas as respostas devem trazer um conceito objetivo, acompanhado de um raciocínio objetivo que o sustenta, além de um exemplo prático, onde até uma criança de 7 anos possa visualizar e entender o texto, proporcionando um aprendizado acelerado.
+Para tanto a linguagem da escrita deve ser clara, coesa, simples e assertiva.
+Além disso, após cada pergunta, questione outros pontos a serem explorados e que derivam do assunto tratado de forma estratégica e associativa, para que o assunto possa ser aprofundado se assim o usuário desejar.
+
+Por fim, use estas regras exatamente como estão em todas as respostas.
+Não reinterprete.
+• Do not invent or assume facts.
+• If unconfirmed, say:
+- "I cannot verify this."
+- "I do not have access to that information."
+• Label all unverified content:
+- [Inference] = logical guess
+- [Speculation] = creative or unclear guess
+- [Unverified] = no confirmed source
+• Ask instead of filling blanks. Do not change input.
+• If any part is unverified, label the full response.
+• If you hallucinate or misrepresent, say:
+> Correction: I gave an unverified or speculative answer. It should have been labeled.
+• Do not use the following unless quoting or citing:
+- Prevent, Guarantee, Will never, Fixes, Eliminates, Ensures that
+• For behavior claims, include:
+- [Unverified] or [Inferencel and a note that this is expected behavior, not guaranteed
+"""
+
 # --- FUNÇÕES DE PERSISTÊNCIA (JSON) ---
 def load_db():
     if not os.path.exists(DB_FILE):
@@ -206,6 +233,7 @@ st.markdown("""
         margin-left: auto;
         margin-right: auto;
         border: 4px solid #C4A484;
+        overflow: hidden; /* Garante que nada saia do circulo */
     }
     
     /* Toast e Mensagens */
@@ -310,7 +338,7 @@ def get_patent(total_questions):
         "Titã Nota de Corte",
         "Espartano Jurídico"
     ]
-    index = min(int(total_questions / 10000), 4)
+    index = min(int(total_questions / 5000), 4)
     return patentes[index]
 
 def get_stars(total_pages):
@@ -505,8 +533,25 @@ def main_app():
         st.info("Para ver os gráficos e ranking corretamente, verifique se instalou o matplotlib via .bat")
 
     # --- CABEÇALHO ---
-    # CSS já ocultou header, menu e footer para ficar Clean no celular
     st.title("🏛️ Mentor SpartaJus")
+    
+    # --- BARRA DE PROGRESSO (Patente) ---
+    progress_val = total_questions % 5000
+    percent_val = (progress_val / 5000) * 100
+    next_goal = (int(total_questions / 5000) + 1) * 5000
+    remaining = 5000 - progress_val
+    
+    st.markdown(f"""
+    <div style="background-color: #4a5a6a; border-radius: 12px; padding: 4px; margin-bottom: 10px; border: 1px solid #D4AF37; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+        <div style="width: {percent_val}%; background-color: #047a0a; height: 24px; border-radius: 8px; text-align: center; line-height: 24px; color: white; font-weight: bold; font-size: 0.9em; white-space: nowrap; overflow: visible; transition: width 0.8s;">
+            &nbsp;{percent_val:.1f}%
+        </div>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #C2D5ED; margin-top: -8px; margin-bottom: 20px;">
+        <span>⚔️ Atual: {progress_val} questões</span>
+        <span>🎯 Próxima Patente: Falta {remaining}</span>
+    </div>
+    """, unsafe_allow_html=True)
     
     col_status1, col_status2 = st.columns([2, 1])
     with col_status1:
@@ -514,7 +559,7 @@ def main_app():
         <div class="rank-card">
             <h2>{user.upper()}</h2>
             <h3>🛡️ Patente: {current_patent}</h3>
-            <p>Nível: {current_level} | 🔥 Fogo Espartano: {streak} dias</p>
+            <p>Total Acumulado: {total_questions} | 🔥 Fogo Espartano: {streak} dias</p>
         </div>
         """, unsafe_allow_html=True)
         
@@ -542,9 +587,13 @@ def main_app():
 
         with col_tree:
             st.subheader("Árvore da Constância")
-            st.markdown('<div class="tree-container">', unsafe_allow_html=True)
-            st.markdown(generate_tree_svg(user_data['tree_branches']), unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            # --- CORREÇÃO DE ALINHAMENTO: HTML UNIFICADO ---
+            tree_html = f"""
+            <div class="tree-container">
+                {generate_tree_svg(user_data['tree_branches'])}
+            </div>
+            """
+            st.markdown(tree_html, unsafe_allow_html=True)
             
             # --- RECADO DO MODERADOR ---
             if user_data.get('mod_message'):
@@ -562,12 +611,10 @@ def main_app():
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    # MUDANÇA 1: Horário agora é texto livre
                     wake_time = st.text_input("Acordou às (Ex: 08:02)", value="06:00")
                     pages = st.number_input("Páginas Lidas", min_value=0, step=1)
                     workout_sets = st.number_input("Séries Musculação", min_value=0, step=1)
                 with c2:
-                    # MUDANÇA 1: Horário agora é texto livre
                     sleep_time = st.text_input("Dormiu às (Ex: 22:30)", value="22:30")
                     questions = st.number_input("Questões Feitas", min_value=0, step=1)
                 
@@ -599,8 +646,8 @@ def main_app():
                     else:
                         entry = {
                             "data": date_str,
-                            "acordou": wake_time, # Salva como string
-                            "dormiu": sleep_time, # Salva como string
+                            "acordou": wake_time, 
+                            "dormiu": sleep_time, 
                             "paginas": pages,
                             "questoes": questions,
                             "series": workout_sets,
@@ -624,13 +671,10 @@ def main_app():
         st.header("📊 Inteligência de Dados")
         
         if len(user_data['logs']) > 0:
-            # --- MUDANÇA 3: FILTROS ---
             filter_opts = ["Total", "Diário", "Semanal", "Mensal", "Bimestral", "Trimestral", "Semestral", "Anual"]
             period = st.selectbox("📅 Selecione o Período de Análise:", filter_opts)
             
-            # Lógica de Filtragem
             df_all = pd.DataFrame(user_data['logs'])
-            # Garante que 'data' seja datetime
             if 'data' in df_all.columns:
                 df_all['data_obj'] = pd.to_datetime(df_all['data']).dt.date
             
@@ -659,7 +703,6 @@ def main_app():
             else: # Total
                 df_filtered = df_all
 
-            # Exibir Métricas Filtradas
             if not df_filtered.empty:
                 f_quest = df_filtered['questoes'].sum()
                 f_pag = df_filtered['paginas'].sum()
@@ -670,11 +713,9 @@ def main_app():
                 cm2.metric("Páginas no Período", f_pag)
                 cm3.metric("Séries no Período", f_ser)
             
-                # DASHBOARD (Gráfico)
                 st.subheader("Gráfico de Tempo por Matéria")
                 
                 subject_mins = {}
-                # Itera apenas sobre o dataframe filtrado
                 for idx, row in df_filtered.iterrows():
                     if 'materias' in row and isinstance(row['materias'], list):
                         for item in row['materias']:
@@ -691,7 +732,6 @@ def main_app():
                     labels = list(subject_mins.keys())
                     sizes = list(subject_mins.values())
                     
-                    # MUDANÇA 2: Gráfico menor (figsize=(3,3))
                     fig, ax = plt.subplots(figsize=(3, 3)) 
                     fig.patch.set_facecolor('#708090') 
                     ax.set_facecolor('#708090')
@@ -708,18 +748,51 @@ def main_app():
                     for autotext in autotexts: autotext.set_color('#121212')
                     
                     ax.axis('equal') 
-                    # Usar colunas para centralizar e limitar tamanho visualmente
                     gc1, gc2, gc3 = st.columns([1, 2, 1])
                     with gc2:
                         st.pyplot(fig)
                 else:
                     st.info("Sem dados de tempo/matéria para este período.")
+            
+                # --- NOVO GRÁFICO: EVOLUÇÃO DE QUESTÕES ---
+                st.subheader("📈 Evolução de Questões Resolvidas")
+                
+                # Prepara os dados ordenados cronologicamente para o gráfico de linha
+                df_line = df_filtered.copy()
+                df_line = df_line.sort_values(by='data_obj')
+                
+                if not df_line.empty:
+                    # Configuração do Gráfico de Linha (Wide)
+                    fig_line, ax_line = plt.subplots(figsize=(6, 2.5)) 
+                    fig_line.patch.set_facecolor('#708090') 
+                    ax_line.set_facecolor('#708090')
+                    
+                    # Plotagem
+                    ax_line.plot(df_line['data_obj'], df_line['questoes'], marker='o', linestyle='-', color='#D4AF37', linewidth=2, markersize=6)
+                    
+                    # Estilização dos Eixos
+                    ax_line.tick_params(axis='x', colors='#C2D5ED', rotation=45, labelsize=8)
+                    ax_line.tick_params(axis='y', colors='#C2D5ED', labelsize=8)
+                    
+                    # Bordas (Spines) personalizadas
+                    ax_line.spines['top'].set_visible(False)
+                    ax_line.spines['right'].set_visible(False)
+                    ax_line.spines['bottom'].set_color('#C2D5ED')
+                    ax_line.spines['left'].set_color('#C2D5ED')
+                    
+                    # Grid suave para facilitar leitura
+                    ax_line.grid(color='#C2D5ED', linestyle=':', linewidth=0.5, alpha=0.3)
+                    
+                    st.pyplot(fig_line)
+                else:
+                    st.info("Dados insuficientes para gerar gráfico de evolução.")
+                # -------------------------------------------
+
             else:
                 st.warning("Nenhum registro encontrado para este período.")
 
             st.divider()
             
-            # HISTÓRICO EDITÁVEL (Mostra tudo ou filtra? Geralmente histórico mostra tudo para edição)
             st.subheader("📜 Pergaminho de Registros (Editável - Todos)")
             
             df = pd.DataFrame(user_data['logs'])
@@ -731,8 +804,8 @@ def main_app():
             
             column_config = {
                 "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY", disabled=True),
-                "acordou": st.column_config.TextColumn("Acordou"), # MUDANÇA: TextColumn
-                "dormiu": st.column_config.TextColumn("Dormiu"),   # MUDANÇA: TextColumn
+                "acordou": st.column_config.TextColumn("Acordou"), 
+                "dormiu": st.column_config.TextColumn("Dormiu"),   
                 "paginas": st.column_config.NumberColumn("Páginas", min_value=0),
                 "questoes": st.column_config.NumberColumn("Questões", min_value=0),
                 "series": st.column_config.NumberColumn("Séries", min_value=0),
@@ -760,8 +833,8 @@ def main_app():
                     mat_list = [m.strip() for m in mat_str.split(',')] if mat_str else []
                     entry = {
                         "data": row['data'],
-                        "acordou": str(row['acordou']), # Salva como string
-                        "dormiu": str(row['dormiu']),   # Salva como string
+                        "acordou": str(row['acordou']), 
+                        "dormiu": str(row['dormiu']),   
                         "paginas": int(row['paginas']),
                         "questoes": int(row['questoes']),
                         "series": int(row['series']),
@@ -819,17 +892,14 @@ def main_app():
             
         if community_data:
             df_comm = pd.DataFrame(community_data)
-            # Ordenar por Questões (Ranking)
             df_comm = df_comm.sort_values(by="Questões", ascending=False).reset_index(drop=True)
-            df_comm.index += 1 # Começar rank em 1
+            df_comm.index += 1 
             df_comm.index.name = "Rank"
             
-            # --- PÓDIO ---
             top_users = df_comm.head(3)
             if not top_users.empty:
                 cols = st.columns([1, 1, 1])
                 
-                # Prata (2º Lugar) - Esquerda
                 if len(top_users) >= 2:
                     with cols[0]:
                         u2 = top_users.iloc[1]
@@ -841,7 +911,6 @@ def main_app():
                         </div>
                         """, unsafe_allow_html=True)
                 
-                # Ouro (1º Lugar) - Centro
                 if len(top_users) >= 1:
                     with cols[1]:
                         u1 = top_users.iloc[0]
@@ -854,7 +923,6 @@ def main_app():
                         </div>
                         """, unsafe_allow_html=True)
                 
-                # Bronze (3º Lugar) - Direita
                 if len(top_users) >= 3:
                     with cols[2]:
                         u3 = top_users.iloc[2]
@@ -869,7 +937,6 @@ def main_app():
             st.divider()
             st.subheader("Classificação Geral")
             
-            # Tabela Completa
             def highlight_self(row):
                 if row['Espartano'] == user:
                     return ['background-color: #5C4033; color: white'] * len(row)
@@ -905,7 +972,7 @@ def main_app():
                         try:
                             genai.configure(api_key=st.session_state.api_key)
                             model = genai.GenerativeModel('gemini-2.0-flash-exp', 
-                                system_instruction="Você é o Mentor SpartaJus. Responda APENAS em texto simples. Seja sério, estoico e prestativo.")
+                                system_instruction=ORACLE_SYSTEM_PROMPT)
                             response = model.generate_content(prompt)
                             clean_text = remove_markdown(response.text)
                             st.write(clean_text)
