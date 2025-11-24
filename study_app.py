@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import google.generativeai as genai
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from datetime import datetime, date, timedelta
@@ -22,44 +21,7 @@ st.set_page_config(
 # --- CONSTANTES GLOBAIS ---
 DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
-
-# --- SEGURANÇA DA API KEY ---
-ENCRYPTED_KEY = "QUl6YVN5RFI1VTdHeHNCZVVVTFE5M1N3UG9VNl9CaGl3VHZzMU9n"
-
-def get_api_key():
-    """Decodifica a chave API apenas no momento do uso."""
-    try:
-        return base64.b64decode(ENCRYPTED_KEY).decode("utf-8")
-    except Exception as e:
-        st.error(f"Erro ao decodificar chave de segurança: {e}")
-        return ""
-
-# --- PROMPT DO SISTEMA (ORÁCULO) ---
-ORACLE_SYSTEM_PROMPT = """
-Responda como um especialista em concursos públicos jurídicos na área do direito, principalmente ministério público, magistratura e procuradorias de estado e capitais municipais, considere também uma vasta experiência como membro presidente de diversas bancas examinadoras ao longo de 15 anos, aprovado em diversos concursos de carreira, especialista em responder provas discursivas com objetividade e assertividade.
-Portanto, todas as respostas devem trazer um conceito objetivo, acompanhado de um raciocínio objetivo que o sustenta, além de um exemplo prático, onde até uma criança de 7 anos possa visualizar e entender o texto, proporcionando um aprendizado acelerado.
-Para tanto a linguagem da escrita deve ser clara, coesa, simples e assertiva.
-Além disso, após cada pergunta, questione outros pontos a serem explorados e que derivam do assunto tratado de forma estratégica e associativa, para que o assunto possa ser aprofundado se assim o usuário desejar.
-
-Por fim, use estas regras exatamente como estão em todas as respostas.
-Não reinterprete.
-• Do not invent or assume facts.
-• If unconfirmed, say:
-- "I cannot verify this."
-- "I do not have access to that information."
-• Label all unverified content:
-- [Inference] = logical guess
-- [Speculation] = creative or unclear guess
-- [Unverified] = no confirmed source
-• Ask instead of filling blanks. Do not change input.
-• If any part is unverified, label the full response.
-• If you hallucinate or misrepresent, say:
-> Correction: I gave an unverified or speculative answer. It should have been labeled.
-• Do not use the following unless quoting or citing:
-- Prevent, Guarantee, Will never, Fixes, Eliminates, Ensures that
-• For behavior claims, include:
-- [Unverified] or [Inferencel and a note that this is expected behavior, not guaranteed
-"""
+ADMIN_USER = "fux_concurseiro" # Usuário Moderador
 
 # --- FUNÇÕES DE PERSISTÊNCIA (JSON) ---
 def load_db():
@@ -169,7 +131,7 @@ st.markdown("""
         box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
     }
     
-    /* Mod Message Box */
+    /* Mod Message Box (Alertas) */
     .mod-message {
         background-color: #2c3e50;
         border-left: 5px solid #D4AF37;
@@ -177,7 +139,7 @@ st.markdown("""
         border-top: 1px solid #D4AF37;
         border-bottom: 1px solid #D4AF37;
         padding: 15px;
-        margin-top: 25px;
+        margin-top: 15px;
         border-radius: 8px;
         color: #C2D5ED;
         box-shadow: 0 4px 10px rgba(0,0,0,0.5);
@@ -274,15 +236,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- FUNÇÕES AUXILIARES ---
-
-def remove_markdown(text):
-    text = re.sub(r'\*\*|__|\*|_', '', text)
-    text = re.sub(r'^#+\s+', '', text, flags=re.MULTILINE)
-    text = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', text)
-    text = re.sub(r'`', '', text)
-    text = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
-    text = re.sub(r'^\s*[-*+]\s+', '', text, flags=re.MULTILINE)
-    return text.strip()
 
 def parse_time_str_to_min(t_str):
     t_str = str(t_str).lower().replace(' ', '')
@@ -444,9 +397,9 @@ def main_app():
     
     is_admin_mode = False
     admin_name = ""
-    is_real_admin = (user == "fux_concuseiro")
+    is_real_admin = (user == ADMIN_USER)
     
-    if 'admin_user' in st.session_state and st.session_state['admin_user'] == "fux_concuseiro":
+    if 'admin_user' in st.session_state and st.session_state['admin_user'] == ADMIN_USER:
         is_admin_mode = True
         admin_name = st.session_state['admin_user']
 
@@ -456,7 +409,7 @@ def main_app():
     if 'mod_message' not in user_data: user_data['mod_message'] = "" 
     
     # --- CONFIGURAR API KEY FIXA (Decodificando) ---
-    st.session_state.api_key = get_api_key()
+    # (API Key foi removida a pedido em passos anteriores, mas lógica base mantida se necessário no futuro)
     
     # --- CÁLCULOS TOTAIS ---
     total_questions = sum([log.get('questoes', 0) for log in user_data['logs']])
@@ -478,18 +431,19 @@ def main_app():
                 
                 if is_real_admin:
                     db = load_db()
-                    all_users = list(db.keys())
+                    # Filtra apenas usuários, removendo a chave de alertas globais se aparecer
+                    all_users = [k for k in db.keys() if k != "global_alerts"]
                     
                     st.markdown("**Gerenciar Usuários**")
                     target_user = st.selectbox("Selecione:", all_users)
                     
                     if st.button("👁️ Acessar Dashboard"):
-                        st.session_state['admin_user'] = "fux_concuseiro"
+                        st.session_state['admin_user'] = ADMIN_USER
                         st.session_state['user'] = target_user
                         st.session_state['user_data'] = db[target_user]
                         st.rerun()
                     
-                    st.markdown("**Enviar Recado**")
+                    st.markdown("**Enviar Recado (Individual)**")
                     current_msg = db[target_user].get('mod_message', '')
                     new_message = st.text_area("Mensagem:", value=current_msg)
                     if st.button("📨 Enviar Recado"):
@@ -497,35 +451,13 @@ def main_app():
                         save_db(db)
                         st.success("Recado enviado!")
                     
-                    st.divider()
-                    st.markdown("**Administração**")
-                    col_adm1, col_adm2 = st.columns(2)
-                    with col_adm1:
-                        adm_u = st.text_input("Novo User", key="admu")
-                        adm_p = st.text_input("Senha", key="admp")
-                        if st.button("Criar"):
-                            if adm_u and adm_p and adm_u not in db:
-                                db[adm_u] = {"password": adm_p, "logs": [], "tree_branches": 1, "created_at": str(datetime.now())}
-                                save_db(db)
-                                st.success("Criado!")
-                    
-                    with col_adm2:
-                        st.write("")
-                        st.write("")
-                        if st.button("❌ Banir User"):
-                            if target_user != "fux_concuseiro":
-                                del db[target_user]
-                                save_db(db)
-                                st.success("Banido!")
-                                st.rerun()
-                            else:
-                                st.error("Erro!")
+                    # (Removido criar/excluir daqui pois foi para a nova aba)
                 
                 elif is_admin_mode:
                     st.warning(f"Visualizando: {user}")
                     if st.button("⬅️ Voltar ao Admin"):
-                        st.session_state['user'] = "fux_concuseiro"
-                        st.session_state['user_data'] = load_db()["fux_concuseiro"]
+                        st.session_state['user'] = ADMIN_USER
+                        st.session_state['user_data'] = load_db()[ADMIN_USER]
                         st.rerun()
 
         st.divider()
@@ -539,9 +471,7 @@ def main_app():
             
         st.divider()
         st.header("⚙️ Configurações")
-        
-        st.success("API Conectada")
-        st.info("Obtenha sua chave gratuita em: aistudio.google.com")
+        st.info("Versão: SpartaJus Clean Edition")
 
     # --- CABEÇALHO ---
     st.title("🏛️ Mentor SpartaJus")
@@ -589,8 +519,11 @@ def main_app():
         </div>
         """, unsafe_allow_html=True)
 
-    # --- ABAS ---
-    tab1, tab2, tab3, tab4 = st.tabs(["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "🤖 Oráculo IA"])
+    # --- DEFINIÇÃO DE ABAS (Dinâmico) ---
+    if user == ADMIN_USER:
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor", "🛡️ Moderação"])
+    else:
+        tab1, tab2, tab3, tab4 = st.tabs(["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor"])
 
     # --- ABA 1: DIÁRIO ---
     with tab1:
@@ -600,11 +533,11 @@ def main_app():
             st.subheader("Árvore da Constância")
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             
-            # --- RECADO DO MODERADOR ---
+            # --- RECADO DO MODERADOR (Individual) ---
             if user_data.get('mod_message'):
                 st.markdown(f"""
                 <div class="mod-message">
-                    <strong>📨 Recado do Mentor (fux_concuseiro):</strong><br>
+                    <strong>📨 Recado do Mentor (Individual):</strong><br>
                     {user_data['mod_message']}
                 </div>
                 """, unsafe_allow_html=True)
@@ -879,6 +812,10 @@ def main_app():
         community_data = []
         
         for u_name, u_data in all_db.items():
+            # IGNORAR A CHAVE DE ALERTAS GLOBAIS
+            if u_name == "global_alerts":
+                continue
+                
             u_logs = u_data.get('logs', [])
             tot_q = sum(l.get('questoes', 0) for l in u_logs)
             tot_p = sum(l.get('paginas', 0) for l in u_logs)
@@ -953,7 +890,6 @@ def main_app():
             st.divider()
             st.subheader("Classificação Geral")
             
-            # Tabela Completa
             def highlight_self(row):
                 if row['Espartano'] == user:
                     return ['background-color: #5C4033; color: white'] * len(row)
@@ -966,51 +902,120 @@ def main_app():
         else:
             st.info("Nenhum dado comunitário disponível.")
 
-    # --- ABA 4: ORÁCULO ---
+    # --- ABA 4: ALERTAS DO MENTOR (NOVA) ---
     with tab4:
-        st.subheader("🤖 Oráculo SpartaJus")
-        if not st.session_state.api_key:
-            st.warning("⚠️ Configure a API Key na barra lateral.")
-        else:
-            if 'chat_history' not in st.session_state:
-                st.session_state.chat_history = []
+        st.header("📢 Alertas do Mentor")
+        st.caption("Quadro de avisos oficial de Esparta")
+        
+        db = load_db()
+        # Garantir que a lista de alertas existe
+        if "global_alerts" not in db:
+            db["global_alerts"] = []
             
-            for message in st.session_state.chat_history:
-                with st.chat_message(message["role"]):
-                    st.write(message["content"])
+        # --- INTERFACE DO MENTOR (POSTAR) ---
+        if user == ADMIN_USER:
+            with st.expander("📝 Escrever Novo Alerta", expanded=True):
+                with st.form("new_alert_form"):
+                    new_alert_text = st.text_area("Mensagem para todos:", height=100)
+                    submit_alert = st.form_submit_button("📢 Publicar Aviso")
+                    
+                    if submit_alert and new_alert_text.strip():
+                        alert_obj = {
+                            "id": str(datetime.now().timestamp()),
+                            "date": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                            "text": new_alert_text,
+                            "author": user
+                        }
+                        # Adiciona no início da lista (mais recente primeiro)
+                        db["global_alerts"].insert(0, alert_obj)
+                        save_db(db)
+                        st.success("Alerta publicado com sucesso!")
+                        st.rerun()
+        
+        st.divider()
+        
+        # --- LISTA DE ALERTAS (PARA TODOS) ---
+        alerts = db.get("global_alerts", [])
+        
+        if not alerts:
+            st.info("Nenhum alerta publicado no momento.")
+        else:
+            for alert in alerts:
+                # Container visual do alerta
+                st.markdown(f"""
+                <div class="mod-message" style="margin-bottom: 20px;">
+                    <div style="font-size: 0.8em; color: #D4AF37; margin-bottom: 5px;">
+                        📅 {alert.get('date', 'Data desc.')} | 🏛️ MENTOR SUPREMO
+                    </div>
+                    <div style="font-size: 1.1em; white-space: pre-wrap;">
+                        {alert.get('text', '')}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Botão de apagar (apenas para o Mentor)
+                if user == ADMIN_USER:
+                    if st.button(f"🗑️ Apagar Alerta de {alert.get('date')}", key=alert.get('id')):
+                        db["global_alerts"].remove(alert)
+                        save_db(db)
+                        st.rerun()
 
-            if prompt := st.chat_input("Consulte o Oráculo..."):
-                st.session_state.chat_history.append({"role": "user", "content": prompt})
-                with st.chat_message("user"):
-                    st.write(prompt)
-
-                with st.chat_message("assistant"):
-                    with st.spinner("Consultando..."):
-                        try:
-                            genai.configure(api_key=st.session_state.api_key)
-                            # LOGICA INTELIGENTE DE FALLBACK DE MODELOS (Loop de tentativas)
-                            models_to_try = ["gemini-1.5-flash", "gemini-pro"]
-                            response = None
-                            last_error = None
-
-                            for model_name in models_to_try:
-                                try:
-                                    model = genai.GenerativeModel(model_name, system_instruction=ORACLE_SYSTEM_PROMPT)
-                                    response = model.generate_content(prompt)
-                                    break # Sucesso, sai do loop
-                                except Exception as e:
-                                    last_error = e
-                                    continue # Tenta o proximo
-                            
-                            if response:
-                                clean_text = remove_markdown(response.text)
-                                st.write(clean_text)
-                                st.session_state.chat_history.append({"role": "assistant", "content": clean_text})
+    # --- ABA 5: MODERAÇÃO (NOVA E EXCLUSIVA) ---
+    if user == ADMIN_USER:
+        with tab5:
+            st.header("🛡️ Central de Comando - Moderação")
+            st.markdown("---")
+            
+            col_add, col_del = st.columns(2)
+            
+            # --- INCLUIR USUÁRIO ---
+            with col_add:
+                st.subheader("✨ Incluir Novo Espartano")
+                with st.form("create_user_form"):
+                    new_u = st.text_input("Nome do Usuário")
+                    new_p = st.text_input("Senha", type="password")
+                    submit_create = st.form_submit_button("Criar Conta")
+                    
+                    if submit_create:
+                        db = load_db()
+                        if new_u and new_p:
+                            if new_u not in db:
+                                db[new_u] = {
+                                    "password": new_p,
+                                    "logs": [],
+                                    "tree_branches": 1,
+                                    "created_at": str(datetime.now()),
+                                    "mod_message": ""
+                                }
+                                save_db(db)
+                                st.success(f"Usuário '{new_u}' recrutado com sucesso!")
+                                time.sleep(1)
+                                st.rerun()
                             else:
-                                st.error(f"Erro ao conectar com os modelos de IA. Detalhe: {last_error}")
+                                st.error("Este nome de usuário já existe.")
+                        else:
+                            st.warning("Preencha nome e senha.")
 
-                        except Exception as e:
-                            st.error(f"Erro geral: {e}")
+            # --- EXCLUIR USUÁRIO ---
+            with col_del:
+                st.subheader("💀 Excluir Espartano")
+                db = load_db()
+                # Filter users, excluding admin and global_alerts
+                users_list = [u for u in db.keys() if u != "global_alerts" and u != ADMIN_USER]
+                
+                if users_list:
+                    target_del = st.selectbox("Selecione o usuário para banir:", users_list)
+                    st.warning(f"Atenção: A exclusão de **{target_del}** é irreversível.")
+                    
+                    if st.button("Confirmar Exclusão 🗑️"):
+                        if target_del in db:
+                            del db[target_del]
+                            save_db(db)
+                            st.success(f"Usuário '{target_del}' foi banido de Esparta.")
+                            time.sleep(1)
+                            st.rerun()
+                else:
+                    st.info("Não há outros usuários para excluir.")
 
 # --- CONTROLE DE FLUXO LOGIN ---
 if 'user' not in st.session_state:
