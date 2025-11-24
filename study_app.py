@@ -24,6 +24,7 @@ DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
 
 # --- SEGURANÇA DA API KEY ---
+# Chave ofuscada em Base64 (Sua chave original: AIzaSyDR5U7GxsBeUULQ93SwPoU6_BhiwTvs1Og)
 ENCRYPTED_KEY = "QUl6YVN5RFI1VTdHeHNCZVVVTFE5M1N3UG9VNl9CaGl3VHZzMU9n"
 
 def get_api_key():
@@ -988,8 +989,8 @@ def main_app():
                     with st.spinner("Consultando..."):
                         try:
                             genai.configure(api_key=st.session_state.api_key)
-                            # MUDANÇA AQUI: Modelo mais estável e com melhores cotas
-                            model = genai.GenerativeModel('gemini-1.5-flash-latest', 
+                            # VERSÃO ESTÁVEL NUMERADA PARA EVITAR ERRO 404
+                            model = genai.GenerativeModel('gemini-1.5-flash-001', 
                                 system_instruction=ORACLE_SYSTEM_PROMPT)
                             response = model.generate_content(prompt)
                             clean_text = remove_markdown(response.text)
