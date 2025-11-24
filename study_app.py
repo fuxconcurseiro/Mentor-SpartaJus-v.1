@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import google.generativeai as genai
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 from datetime import datetime, date, timedelta
 import re
 import random
@@ -233,7 +234,7 @@ st.markdown("""
         margin-left: auto;
         margin-right: auto;
         border: 4px solid #C4A484;
-        overflow: hidden; /* Garante que nada saia do circulo */
+        overflow: hidden; 
     }
     
     /* Toast e Mensagens */
@@ -530,7 +531,7 @@ def main_app():
         if api_key_input:
             st.session_state.api_key = api_key_input
         
-        st.info("Para ver os gráficos e ranking corretamente, verifique se instalou o matplotlib via .bat")
+        st.info("Obtenha sua chave gratuita em: aistudio.google.com")
 
     # --- CABEÇALHO ---
     st.title("🏛️ Mentor SpartaJus")
@@ -587,13 +588,8 @@ def main_app():
 
         with col_tree:
             st.subheader("Árvore da Constância")
-            # --- CORREÇÃO DE ALINHAMENTO: HTML UNIFICADO ---
-            tree_html = f"""
-            <div class="tree-container">
-                {generate_tree_svg(user_data['tree_branches'])}
-            </div>
-            """
-            st.markdown(tree_html, unsafe_allow_html=True)
+            # --- CORREÇÃO: Removido quebra de linha para evitar bug visual ---
+            st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             
             # --- RECADO DO MODERADOR ---
             if user_data.get('mod_message'):
@@ -732,56 +728,69 @@ def main_app():
                     labels = list(subject_mins.keys())
                     sizes = list(subject_mins.values())
                     
-                    fig, ax = plt.subplots(figsize=(3, 3)) 
+                    # Ajuste no tamanho da figura para acomodar legenda
+                    fig, ax = plt.subplots(figsize=(6, 3)) 
                     fig.patch.set_facecolor('#708090') 
                     ax.set_facecolor('#708090')
                     
                     colors = ['#D4AF37', '#8B4513', '#CD853F', '#F4A460', '#DAA520', '#556B2F']
                     
+                    # Cria a pizza sem labels diretos (labels=None)
                     wedges, texts, autotexts = ax.pie(
-                        sizes, labels=labels, autopct='%1.1f%%', 
+                        sizes, labels=None, autopct='%1.1f%%', 
                         startangle=90, colors=colors[:len(labels)],
                         textprops={'color':"#C2D5ED", 'fontsize': 8} 
                     )
                     
+                    # Legenda Lateral
+                    ax.legend(wedges, labels,
+                              title="Matérias",
+                              loc="center left",
+                              bbox_to_anchor=(1, 0, 0.5, 1),
+                              frameon=False,
+                              labelcolor='#C2D5ED',
+                              title_fontsize='small')
+                    plt.setp(ax.get_legend().get_title(), color='#C2D5ED')
+
                     for text in texts: text.set_color('#C2D5ED')
                     for autotext in autotexts: autotext.set_color('#121212')
                     
                     ax.axis('equal') 
-                    gc1, gc2, gc3 = st.columns([1, 2, 1])
-                    with gc2:
-                        st.pyplot(fig)
+                    st.pyplot(fig)
                 else:
                     st.info("Sem dados de tempo/matéria para este período.")
             
-                # --- NOVO GRÁFICO: EVOLUÇÃO DE QUESTÕES ---
-                st.subheader("📈 Evolução de Questões Resolvidas")
+                # --- GRÁFICO: EVOLUÇÃO DE QUESTÕES (Corrigido e Diminuído) ---
+                st.subheader("📈 Evolução de Questões")
                 
-                # Prepara os dados ordenados cronologicamente para o gráfico de linha
                 df_line = df_filtered.copy()
                 df_line = df_line.sort_values(by='data_obj')
                 
                 if not df_line.empty:
-                    # Configuração do Gráfico de Linha (Wide)
-                    fig_line, ax_line = plt.subplots(figsize=(6, 2.5)) 
+                    # Reduzindo a altura (figsize=(6, 2))
+                    fig_line, ax_line = plt.subplots(figsize=(6, 2)) 
                     fig_line.patch.set_facecolor('#708090') 
                     ax_line.set_facecolor('#708090')
                     
-                    # Plotagem
-                    ax_line.plot(df_line['data_obj'], df_line['questoes'], marker='o', linestyle='-', color='#D4AF37', linewidth=2, markersize=6)
+                    # Agrupar por data para somar questões do mesmo dia se houver duplicidade
+                    df_line_grouped = df_line.groupby('data_obj')['questoes'].sum().reset_index()
                     
-                    # Estilização dos Eixos
+                    ax_line.plot(df_line_grouped['data_obj'], df_line_grouped['questoes'], marker='o', linestyle='-', color='#D4AF37', linewidth=2, markersize=5)
+                    
+                    # Formatação de Data no Eixo X
+                    ax_line.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m'))
                     ax_line.tick_params(axis='x', colors='#C2D5ED', rotation=45, labelsize=8)
                     ax_line.tick_params(axis='y', colors='#C2D5ED', labelsize=8)
                     
-                    # Bordas (Spines) personalizadas
                     ax_line.spines['top'].set_visible(False)
                     ax_line.spines['right'].set_visible(False)
                     ax_line.spines['bottom'].set_color('#C2D5ED')
                     ax_line.spines['left'].set_color('#C2D5ED')
                     
-                    # Grid suave para facilitar leitura
                     ax_line.grid(color='#C2D5ED', linestyle=':', linewidth=0.5, alpha=0.3)
+                    
+                    # Rotaciona datas automaticamente para não encavalar
+                    fig_line.autofmt_xdate()
                     
                     st.pyplot(fig_line)
                 else:
