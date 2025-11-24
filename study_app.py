@@ -144,6 +144,15 @@ st.markdown("""
         color: #C2D5ED;
         box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     }
+    
+    .private-message {
+        background-color: #3e2723; /* Fundo avermelhado escuro para destaque privado */
+        border: 2px dashed #D4AF37;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        color: #C2D5ED;
+    }
 
     /* Podium Cards */
     .podium-gold {
@@ -408,9 +417,6 @@ def main_app():
     if 'tree_branches' not in user_data: user_data['tree_branches'] = 1
     if 'mod_message' not in user_data: user_data['mod_message'] = "" 
     
-    # --- CONFIGURAR API KEY FIXA (Decodificando) ---
-    # (API Key foi removida a pedido em passos anteriores, mas lógica base mantida se necessário no futuro)
-    
     # --- CÁLCULOS TOTAIS ---
     total_questions = sum([log.get('questoes', 0) for log in user_data['logs']])
     total_pages = sum([log.get('paginas', 0) for log in user_data['logs']])
@@ -431,27 +437,19 @@ def main_app():
                 
                 if is_real_admin:
                     db = load_db()
-                    # Filtra apenas usuários, removendo a chave de alertas globais se aparecer
+                    # Filtra apenas usuários
                     all_users = [k for k in db.keys() if k != "global_alerts"]
                     
-                    st.markdown("**Gerenciar Usuários**")
-                    target_user = st.selectbox("Selecione:", all_users)
+                    st.markdown("**Gerenciar Dashboard de Usuário**")
+                    target_user = st.selectbox("Selecione o Espartano:", all_users)
                     
-                    if st.button("👁️ Acessar Dashboard"):
+                    if st.button("👁️ Acessar Dashboard Selecionado"):
                         st.session_state['admin_user'] = ADMIN_USER
                         st.session_state['user'] = target_user
                         st.session_state['user_data'] = db[target_user]
                         st.rerun()
                     
-                    st.markdown("**Enviar Recado (Individual)**")
-                    current_msg = db[target_user].get('mod_message', '')
-                    new_message = st.text_area("Mensagem:", value=current_msg)
-                    if st.button("📨 Enviar Recado"):
-                        db[target_user]['mod_message'] = new_message
-                        save_db(db)
-                        st.success("Recado enviado!")
-                    
-                    # (Removido criar/excluir daqui pois foi para a nova aba)
+                    # Nota: Campo de mensagem individual REMOVIDO DAQUI conforme pedido
                 
                 elif is_admin_mode:
                     st.warning(f"Visualizando: {user}")
@@ -533,11 +531,12 @@ def main_app():
             st.subheader("Árvore da Constância")
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             
-            # --- RECADO DO MODERADOR (Individual) ---
+            # --- RECADO DO MODERADOR (Individual) - Visão do Usuário ---
+            # Esta mensagem aparece aqui também para garantir que o usuário veja logo ao abrir a árvore
             if user_data.get('mod_message'):
                 st.markdown(f"""
-                <div class="mod-message">
-                    <strong>📨 Recado do Mentor (Individual):</strong><br>
+                <div class="private-message">
+                    <strong>📨 MENSAGEM DO MENTOR:</strong><br>
                     {user_data['mod_message']}
                 </div>
                 """, unsafe_allow_html=True)
@@ -905,60 +904,109 @@ def main_app():
     # --- ABA 4: ALERTAS DO MENTOR (NOVA) ---
     with tab4:
         st.header("📢 Alertas do Mentor")
-        st.caption("Quadro de avisos oficial de Esparta")
         
         db = load_db()
         # Garantir que a lista de alertas existe
         if "global_alerts" not in db:
             db["global_alerts"] = []
             
-        # --- INTERFACE DO MENTOR (POSTAR) ---
-        if user == ADMIN_USER:
-            with st.expander("📝 Escrever Novo Alerta", expanded=True):
-                with st.form("new_alert_form"):
-                    new_alert_text = st.text_area("Mensagem para todos:", height=100)
-                    submit_alert = st.form_submit_button("📢 Publicar Aviso")
+        col_global, col_priv = st.columns([1, 1])
+        
+        # === COLUNA 1: ALERTAS GLOBAIS ===
+        with col_global:
+            st.subheader("🌍 Mural de Avisos Globais")
+            
+            # --- ÁREA DE POSTAGEM (ADMIN) ---
+            if user == ADMIN_USER:
+                with st.expander("📝 Escrever Novo Alerta Global", expanded=False):
+                    with st.form("new_alert_form"):
+                        new_alert_text = st.text_area("Mensagem para todos:", height=80)
+                        submit_alert = st.form_submit_button("📢 Publicar Aviso")
+                        
+                        if submit_alert and new_alert_text.strip():
+                            alert_obj = {
+                                "id": str(datetime.now().timestamp()),
+                                "date": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                "text": new_alert_text,
+                                "author": user
+                            }
+                            db["global_alerts"].insert(0, alert_obj)
+                            save_db(db)
+                            st.success("Publicado!")
+                            st.rerun()
+            
+            # --- LISTAGEM DE ALERTAS ---
+            alerts = db.get("global_alerts", [])
+            if not alerts:
+                st.info("Nenhum alerta global.")
+            else:
+                for alert in alerts:
+                    st.markdown(f"""
+                    <div class="mod-message" style="margin-bottom: 10px; padding: 10px;">
+                        <div style="font-size: 0.7em; color: #D4AF37;">📅 {alert.get('date')}</div>
+                        <div style="white-space: pre-wrap;">{alert.get('text')}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
                     
-                    if submit_alert and new_alert_text.strip():
-                        alert_obj = {
-                            "id": str(datetime.now().timestamp()),
-                            "date": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                            "text": new_alert_text,
-                            "author": user
-                        }
-                        # Adiciona no início da lista (mais recente primeiro)
-                        db["global_alerts"].insert(0, alert_obj)
-                        save_db(db)
-                        st.success("Alerta publicado com sucesso!")
-                        st.rerun()
-        
-        st.divider()
-        
-        # --- LISTA DE ALERTAS (PARA TODOS) ---
-        alerts = db.get("global_alerts", [])
-        
-        if not alerts:
-            st.info("Nenhum alerta publicado no momento.")
-        else:
-            for alert in alerts:
-                # Container visual do alerta
-                st.markdown(f"""
-                <div class="mod-message" style="margin-bottom: 20px;">
-                    <div style="font-size: 0.8em; color: #D4AF37; margin-bottom: 5px;">
-                        📅 {alert.get('date', 'Data desc.')} | 🏛️ MENTOR SUPREMO
-                    </div>
-                    <div style="font-size: 1.1em; white-space: pre-wrap;">
-                        {alert.get('text', '')}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                    if user == ADMIN_USER:
+                        if st.button(f"🗑️ Apagar", key=f"del_{alert.get('id')}"):
+                            db["global_alerts"].remove(alert)
+                            save_db(db)
+                            st.rerun()
+
+        # === COLUNA 2: MENSAGENS PRIVADAS ===
+        with col_priv:
+            st.subheader("📨 Mensagens Individuais")
+            
+            # --- ÁREA DE ENVIO (ADMIN) ---
+            if user == ADMIN_USER:
+                st.markdown("---")
+                st.markdown("**Enviar Mensagem Privada**")
                 
-                # Botão de apagar (apenas para o Mentor)
-                if user == ADMIN_USER:
-                    if st.button(f"🗑️ Apagar Alerta de {alert.get('date')}", key=alert.get('id')):
-                        db["global_alerts"].remove(alert)
-                        save_db(db)
-                        st.rerun()
+                all_users = [k for k in db.keys() if k != "global_alerts" and k != ADMIN_USER]
+                target_msg_user = st.selectbox("Destinatário:", all_users, key="msg_target")
+                
+                # Mostra se já existe mensagem
+                current_msg = db[target_msg_user].get('mod_message', '')
+                if current_msg:
+                    st.warning(f"⚠️ Este usuário já tem uma mensagem ativa: '{current_msg}'")
+                
+                new_priv_msg = st.text_area("Mensagem Privada:", key="priv_txt")
+                
+                if st.button("Enviar/Atualizar Mensagem"):
+                    db[target_msg_user]['mod_message'] = new_priv_msg
+                    save_db(db)
+                    st.success(f"Mensagem enviada para {target_msg_user}!")
+                    st.rerun()
+                
+                st.markdown("---")
+                st.markdown("**Gerenciar Mensagens Ativas**")
+                # Listar usuários com mensagens
+                users_with_msg = [u for u in all_users if db[u].get('mod_message')]
+                if not users_with_msg:
+                    st.caption("Nenhum usuário possui mensagens pendentes.")
+                else:
+                    for u_msg in users_with_msg:
+                        with st.container():
+                            st.markdown(f"**{u_msg}:** {db[u_msg]['mod_message']}")
+                            if st.button(f"Apagar Msg de {u_msg}", key=f"del_msg_{u_msg}"):
+                                db[u_msg]['mod_message'] = ""
+                                save_db(db)
+                                st.rerun()
+                            st.divider()
+
+            # --- ÁREA DE VISUALIZAÇÃO (USUÁRIO COMUM) ---
+            else:
+                my_msg = user_data.get('mod_message', '')
+                if my_msg:
+                    st.markdown(f"""
+                    <div class="private-message">
+                        <h3 style="color: #D4AF37; margin-top:0;">⚠️ MENSAGEM DO MENTOR</h3>
+                        <p style="font-size: 1.1em;">{my_msg}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.info("Você não tem mensagens privadas novas.")
 
     # --- ABA 5: MODERAÇÃO (NOVA E EXCLUSIVA) ---
     if user == ADMIN_USER:
