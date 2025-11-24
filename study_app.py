@@ -35,9 +35,15 @@ def save_db(db_data):
     with open(DB_FILE, "w", encoding="utf-8") as f:
         json.dump(db_data, f, indent=4, default=str)
 
-# --- ESTILOS CSS (TEMA ARDÓSIA/ESPARTANO + TEXTO AZULADO COMPLETO) ---
+# --- ESTILOS CSS (CLEAN UI + TEMA ESPARTANO) ---
 st.markdown("""
     <style>
+    /* --- REMOÇÃO DE ELEMENTOS VISUAIS DO STREAMLIT --- */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    [data-testid="stToolbar"] {visibility: hidden;}
+    
     /* Fundo Geral */
     .stApp {
         background-color: #708090; /* Ardósia */
@@ -123,10 +129,10 @@ st.markdown("""
         box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
     }
     
-    /* Mod Message Box (Recado do Moderador) */
+    /* Mod Message Box */
     .mod-message {
         background-color: #2c3e50;
-        border-left: 5px solid #D4AF37; /* Borda Dourada */
+        border-left: 5px solid #D4AF37;
         border-right: 1px solid #D4AF37;
         border-top: 1px solid #D4AF37;
         border-bottom: 1px solid #D4AF37;
@@ -352,7 +358,7 @@ def login_page():
     col1, col2 = st.columns([1, 1])
     with col1:
         st.subheader("Entrar")
-        username = st.text_input("Usuário").strip() # Strip para remover espaços extras
+        username = st.text_input("Usuário").strip() 
         password = st.text_input("Senha", type="password")
         if st.button("Login"):
             db = load_db()
@@ -395,19 +401,14 @@ def main_app():
     user = st.session_state['user']
     user_data = st.session_state['user_data']
     
-    # Verifica se é ADMIN MODE (fux_concuseiro)
     is_admin_mode = False
     admin_name = ""
-    
-    # Lógica de Moderação
-    # Se o usuário logado for fux_concuseiro OU se estiver em modo de admin (visualizando outro)
     is_real_admin = (user == "fux_concuseiro")
     
     if 'admin_user' in st.session_state and st.session_state['admin_user'] == "fux_concuseiro":
         is_admin_mode = True
         admin_name = st.session_state['admin_user']
 
-    # Garantir chaves básicas
     if 'logs' not in user_data: user_data['logs'] = []
     if 'tree_branches' not in user_data: user_data['tree_branches'] = 1
     if 'mod_message' not in user_data: user_data['mod_message'] = "" 
@@ -423,16 +424,13 @@ def main_app():
 
     # --- BARRA LATERAL ---
     with st.sidebar:
-        # LOGO
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE)
             
-        # --- PAINEL DO MODERADOR (DESTAQUE NO TOPO) ---
         if is_real_admin or is_admin_mode:
             with st.expander("🛡️ PAINEL DO MODERADOR", expanded=True):
                 st.caption("Área restrita de comando")
                 
-                # Se for o próprio admin logado
                 if is_real_admin:
                     db = load_db()
                     all_users = list(db.keys())
@@ -440,14 +438,12 @@ def main_app():
                     st.markdown("**Gerenciar Usuários**")
                     target_user = st.selectbox("Selecione:", all_users)
                     
-                    # 1. Acessar Conta
                     if st.button("👁️ Acessar Dashboard"):
                         st.session_state['admin_user'] = "fux_concuseiro"
                         st.session_state['user'] = target_user
                         st.session_state['user_data'] = db[target_user]
                         st.rerun()
                     
-                    # 2. Deixar Recado
                     st.markdown("**Enviar Recado**")
                     current_msg = db[target_user].get('mod_message', '')
                     new_message = st.text_area("Mensagem:", value=current_msg)
@@ -456,7 +452,6 @@ def main_app():
                         save_db(db)
                         st.success("Recado enviado!")
                     
-                    # 3. Criar/Apagar
                     st.divider()
                     st.markdown("**Administração**")
                     col_adm1, col_adm2 = st.columns(2)
@@ -481,7 +476,6 @@ def main_app():
                             else:
                                 st.error("Erro!")
                 
-                # Se estiver visualizando outro usuário
                 elif is_admin_mode:
                     st.warning(f"Visualizando: {user}")
                     if st.button("⬅️ Voltar ao Admin"):
@@ -511,9 +505,9 @@ def main_app():
         st.info("Para ver os gráficos e ranking corretamente, verifique se instalou o matplotlib via .bat")
 
     # --- CABEÇALHO ---
+    # CSS já ocultou header, menu e footer para ficar Clean no celular
     st.title("🏛️ Mentor SpartaJus")
     
-    # Banner Principal
     col_status1, col_status2 = st.columns([2, 1])
     with col_status1:
         st.markdown(f"""
@@ -552,7 +546,7 @@ def main_app():
             st.markdown(generate_tree_svg(user_data['tree_branches']), unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
             
-            # --- RECADO DO MODERADOR (Confirmado: Logo abaixo da árvore) ---
+            # --- RECADO DO MODERADOR ---
             if user_data.get('mod_message'):
                 st.markdown(f"""
                 <div class="mod-message">
@@ -568,11 +562,13 @@ def main_app():
                 
                 c1, c2 = st.columns(2)
                 with c1:
-                    wake_time = st.time_input("Acordou às", value=datetime.strptime("06:00", "%H:%M").time())
+                    # MUDANÇA 1: Horário agora é texto livre
+                    wake_time = st.text_input("Acordou às (Ex: 08:02)", value="06:00")
                     pages = st.number_input("Páginas Lidas", min_value=0, step=1)
                     workout_sets = st.number_input("Séries Musculação", min_value=0, step=1)
                 with c2:
-                    sleep_time = st.time_input("Dormiu às", value=datetime.strptime("22:30", "%H:%M").time())
+                    # MUDANÇA 1: Horário agora é texto livre
+                    sleep_time = st.text_input("Dormiu às (Ex: 22:30)", value="22:30")
                     questions = st.number_input("Questões Feitas", min_value=0, step=1)
                 
                 st.divider()
@@ -603,8 +599,8 @@ def main_app():
                     else:
                         entry = {
                             "data": date_str,
-                            "acordou": wake_time.strftime("%H:%M"),
-                            "dormiu": sleep_time.strftime("%H:%M"),
+                            "acordou": wake_time, # Salva como string
+                            "dormiu": sleep_time, # Salva como string
                             "paginas": pages,
                             "questoes": questions,
                             "series": workout_sets,
@@ -628,61 +624,115 @@ def main_app():
         st.header("📊 Inteligência de Dados")
         
         if len(user_data['logs']) > 0:
-            # DASHBOARD
-            st.subheader("Gráfico de Tempo por Matéria")
+            # --- MUDANÇA 3: FILTROS ---
+            filter_opts = ["Total", "Diário", "Semanal", "Mensal", "Bimestral", "Trimestral", "Semestral", "Anual"]
+            period = st.selectbox("📅 Selecione o Período de Análise:", filter_opts)
             
-            subject_mins = {}
-            for log in user_data['logs']:
-                if 'materias' in log:
-                    for item in log['materias']:
-                        if '-' in item:
-                            parts = item.split('-', 1)
-                            time_str = parts[0].strip()
-                            subj_name = parts[1].strip()
-                            
-                            mins = parse_time_str_to_min(time_str)
-                            if mins > 0:
-                                subject_mins[subj_name] = subject_mins.get(subj_name, 0) + mins
+            # Lógica de Filtragem
+            df_all = pd.DataFrame(user_data['logs'])
+            # Garante que 'data' seja datetime
+            if 'data' in df_all.columns:
+                df_all['data_obj'] = pd.to_datetime(df_all['data']).dt.date
             
-            if subject_mins:
-                labels = list(subject_mins.keys())
-                sizes = list(subject_mins.values())
+            today = date.today()
+            
+            if period == "Diário":
+                df_filtered = df_all[df_all['data_obj'] == today]
+            elif period == "Semanal":
+                start_date = today - timedelta(days=7)
+                df_filtered = df_all[df_all['data_obj'] >= start_date]
+            elif period == "Mensal":
+                start_date = today - timedelta(days=30)
+                df_filtered = df_all[df_all['data_obj'] >= start_date]
+            elif period == "Bimestral":
+                start_date = today - timedelta(days=60)
+                df_filtered = df_all[df_all['data_obj'] >= start_date]
+            elif period == "Trimestral":
+                start_date = today - timedelta(days=90)
+                df_filtered = df_all[df_all['data_obj'] >= start_date]
+            elif period == "Semestral":
+                start_date = today - timedelta(days=180)
+                df_filtered = df_all[df_all['data_obj'] >= start_date]
+            elif period == "Anual":
+                start_date = today - timedelta(days=365)
+                df_filtered = df_all[df_all['data_obj'] >= start_date]
+            else: # Total
+                df_filtered = df_all
+
+            # Exibir Métricas Filtradas
+            if not df_filtered.empty:
+                f_quest = df_filtered['questoes'].sum()
+                f_pag = df_filtered['paginas'].sum()
+                f_ser = df_filtered['series'].sum()
                 
-                # Configuração do gráfico - Usando as cores do tema
-                fig, ax = plt.subplots(figsize=(6, 6))
-                fig.patch.set_facecolor('#708090') # Fundo Ardósia
-                ax.set_facecolor('#708090')
+                cm1, cm2, cm3 = st.columns(3)
+                cm1.metric("Questões no Período", f_quest)
+                cm2.metric("Páginas no Período", f_pag)
+                cm3.metric("Séries no Período", f_ser)
+            
+                # DASHBOARD (Gráfico)
+                st.subheader("Gráfico de Tempo por Matéria")
                 
-                # Cores douradas/terrosas para o gráfico
-                colors = ['#D4AF37', '#8B4513', '#CD853F', '#F4A460', '#DAA520', '#556B2F']
+                subject_mins = {}
+                # Itera apenas sobre o dataframe filtrado
+                for idx, row in df_filtered.iterrows():
+                    if 'materias' in row and isinstance(row['materias'], list):
+                        for item in row['materias']:
+                            if '-' in item:
+                                parts = item.split('-', 1)
+                                time_str = parts[0].strip()
+                                subj_name = parts[1].strip()
+                                
+                                mins = parse_time_str_to_min(time_str)
+                                if mins > 0:
+                                    subject_mins[subj_name] = subject_mins.get(subj_name, 0) + mins
                 
-                wedges, texts, autotexts = ax.pie(
-                    sizes, labels=labels, autopct='%1.1f%%', 
-                    startangle=90, colors=colors[:len(labels)],
-                    textprops={'color':"#C2D5ED"} # Azul/Cinza para texto
-                )
-                
-                for text in texts: text.set_color('#C2D5ED')
-                for autotext in autotexts: autotext.set_color('#121212')
-                
-                ax.axis('equal') 
-                st.pyplot(fig)
+                if subject_mins:
+                    labels = list(subject_mins.keys())
+                    sizes = list(subject_mins.values())
+                    
+                    # MUDANÇA 2: Gráfico menor (figsize=(3,3))
+                    fig, ax = plt.subplots(figsize=(3, 3)) 
+                    fig.patch.set_facecolor('#708090') 
+                    ax.set_facecolor('#708090')
+                    
+                    colors = ['#D4AF37', '#8B4513', '#CD853F', '#F4A460', '#DAA520', '#556B2F']
+                    
+                    wedges, texts, autotexts = ax.pie(
+                        sizes, labels=labels, autopct='%1.1f%%', 
+                        startangle=90, colors=colors[:len(labels)],
+                        textprops={'color':"#C2D5ED", 'fontsize': 8} 
+                    )
+                    
+                    for text in texts: text.set_color('#C2D5ED')
+                    for autotext in autotexts: autotext.set_color('#121212')
+                    
+                    ax.axis('equal') 
+                    # Usar colunas para centralizar e limitar tamanho visualmente
+                    gc1, gc2, gc3 = st.columns([1, 2, 1])
+                    with gc2:
+                        st.pyplot(fig)
+                else:
+                    st.info("Sem dados de tempo/matéria para este período.")
             else:
-                st.info("Adicione matérias e tempos no seu diário para ver o gráfico.")
+                st.warning("Nenhum registro encontrado para este período.")
 
             st.divider()
             
-            # HISTÓRICO EDITÁVEL
-            st.subheader("📜 Pergaminho de Registros (Editável)")
+            # HISTÓRICO EDITÁVEL (Mostra tudo ou filtra? Geralmente histórico mostra tudo para edição)
+            st.subheader("📜 Pergaminho de Registros (Editável - Todos)")
             
             df = pd.DataFrame(user_data['logs'])
             if 'materias' not in df.columns: df['materias'] = [[] for _ in range(len(df))]
             df['materias_str'] = df['materias'].apply(lambda x: ", ".join(x) if isinstance(x, list) else str(x))
             
+            if 'data' in df.columns:
+                df['data'] = pd.to_datetime(df['data']).dt.date
+            
             column_config = {
                 "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY", disabled=True),
-                "acordou": st.column_config.TimeColumn("Acordou", format="HH:mm"),
-                "dormiu": st.column_config.TimeColumn("Dormiu", format="HH:mm"),
+                "acordou": st.column_config.TextColumn("Acordou"), # MUDANÇA: TextColumn
+                "dormiu": st.column_config.TextColumn("Dormiu"),   # MUDANÇA: TextColumn
                 "paginas": st.column_config.NumberColumn("Páginas", min_value=0),
                 "questoes": st.column_config.NumberColumn("Questões", min_value=0),
                 "series": st.column_config.NumberColumn("Séries", min_value=0),
@@ -690,8 +740,10 @@ def main_app():
                 "materias_str": st.column_config.TextColumn("Matérias (Texto)"),
             }
             
-            df['data_dt'] = pd.to_datetime(df['data'])
-            df = df.sort_values(by='data_dt', ascending=False)
+            if 'data_obj' not in df.columns:
+                 df['data_dt'] = pd.to_datetime(df['data'])
+            
+            df = df.sort_values(by='data', ascending=False)
             
             edited_df = st.data_editor(
                 df[['data', 'acordou', 'dormiu', 'paginas', 'questoes', 'series', 'estudou', 'materias_str']],
@@ -708,8 +760,8 @@ def main_app():
                     mat_list = [m.strip() for m in mat_str.split(',')] if mat_str else []
                     entry = {
                         "data": row['data'],
-                        "acordou": str(row['acordou']),
-                        "dormiu": str(row['dormiu']),
+                        "acordou": str(row['acordou']), # Salva como string
+                        "dormiu": str(row['dormiu']),   # Salva como string
                         "paginas": int(row['paginas']),
                         "questoes": int(row['questoes']),
                         "series": int(row['series']),
@@ -720,7 +772,6 @@ def main_app():
                         entry['data'] = entry['data'].strftime("%Y-%m-%d")
                     new_logs.append(entry)
                 
-                # Recalcula Árvore
                 branches = 1
                 for log in sorted(new_logs, key=lambda x: x['data']):
                     if log['estudou']: branches += 1
@@ -743,7 +794,6 @@ def main_app():
         all_db = load_db()
         community_data = []
         
-        # Coletar dados de todos
         for u_name, u_data in all_db.items():
             u_logs = u_data.get('logs', [])
             tot_q = sum(l.get('questoes', 0) for l in u_logs)
