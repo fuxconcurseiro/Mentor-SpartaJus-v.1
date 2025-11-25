@@ -25,17 +25,59 @@ ADMIN_USER = "fux_concurseiro" # Usuário Moderador
 
 # --- FUNÇÕES DE PERSISTÊNCIA (JSON) ---
 def load_db():
+    """Carrega o banco de dados. Se não existir ou estiver corrompido, retorna vazio."""
     if not os.path.exists(DB_FILE):
         return {}
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
-    except:
+    except json.JSONDecodeError:
+        # Backup de segurança se o arquivo estiver corrompido seria ideal, 
+        # mas aqui retornamos vazio para não quebrar o app.
         return {}
 
 def save_db(db_data):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(db_data, f, indent=4, default=str)
+    """Salva os dados no arquivo JSON de forma segura."""
+    try:
+        with open(DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(db_data, f, indent=4, default=str)
+    except Exception as e:
+        st.error(f"Erro grave ao salvar dados: {e}")
+
+# --- AUTO-CRIAÇÃO E PROTEÇÃO DE USUÁRIOS (Correção de Login) ---
+def ensure_users_exist():
+    """
+    Garante que os usuários principais existam no banco de dados.
+    Isso previne erro de login se o arquivo for deletado ou movido.
+    NÃO APAGA DADOS EXISTENTES. Apenas cria se faltar.
+    """
+    db = load_db()
+    data_changed = False
+    
+    # Lista de usuários VIPs que não podem ficar de fora
+    vip_users = {
+        "fux_concurseiro": "Senha128",  # Admin
+        "steissy": "Mudar123",          # Usuário Ativo 1
+        "JuOlebar": "Mudar123"          # Usuário Ativo 2
+    }
+    
+    for user, default_pass in vip_users.items():
+        if user not in db:
+            # Cria o usuário apenas se ele não existir
+            db[user] = {
+                "password": default_pass,
+                "logs": [],
+                "tree_branches": 1,
+                "created_at": str(datetime.now()),
+                "mod_message": ""
+            }
+            data_changed = True
+    
+    if data_changed:
+        save_db(db)
+
+# Executa a verificação crítica ao carregar o script
+ensure_users_exist()
 
 # --- ESTILOS CSS (CLEAN UI + TEMA ESPARTANO) ---
 st.markdown("""
@@ -131,7 +173,7 @@ st.markdown("""
         box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
     }
     
-    /* Mod Message Box (Alertas) */
+    /* Mod Message Box */
     .mod-message {
         background-color: #2c3e50;
         border-left: 5px solid #D4AF37;
@@ -449,8 +491,6 @@ def main_app():
                         st.session_state['user_data'] = db[target_user]
                         st.rerun()
                     
-                    # Nota: Campo de mensagem individual REMOVIDO DAQUI conforme pedido
-                
                 elif is_admin_mode:
                     st.warning(f"Visualizando: {user}")
                     if st.button("⬅️ Voltar ao Admin"):
