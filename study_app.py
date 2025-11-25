@@ -746,7 +746,7 @@ def main_app():
                 df['data'] = pd.to_datetime(df['data']).dt.date
             
             column_config = {
-                "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY", disabled=True),
+                "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY", disabled=False),
                 "acordou": st.column_config.TextColumn("Acordou"), 
                 "dormiu": st.column_config.TextColumn("Dormiu"),   
                 "paginas": st.column_config.NumberColumn("Páginas", min_value=0),
@@ -774,13 +774,27 @@ def main_app():
                 for index, row in edited_df.iterrows():
                     mat_str = row['materias_str']
                     mat_list = [m.strip() for m in mat_str.split(',')] if mat_str else []
+                    
+                    # Conversão robusta
+                    try:
+                        p_val = int(row['paginas']) if pd.notnull(row['paginas']) else 0
+                    except: p_val = 0
+                    
+                    try:
+                        q_val = int(row['questoes']) if pd.notnull(row['questoes']) else 0
+                    except: q_val = 0
+                    
+                    try:
+                        s_val = int(row['series']) if pd.notnull(row['series']) else 0
+                    except: s_val = 0
+
                     entry = {
                         "data": row['data'],
                         "acordou": str(row['acordou']), 
                         "dormiu": str(row['dormiu']),   
-                        "paginas": int(row['paginas']),
-                        "questoes": int(row['questoes']),
-                        "series": int(row['series']),
+                        "paginas": p_val,
+                        "questoes": q_val,
+                        "series": s_val,
                         "estudou": bool(row['estudou']),
                         "materias": mat_list
                     }
