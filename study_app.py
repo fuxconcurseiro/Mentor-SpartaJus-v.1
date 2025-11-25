@@ -9,6 +9,15 @@ import json
 import os
 import time
 import base64
+import shutil
+
+# Tenta importar bibliotecas do Google Sheets. Se falhar, roda em modo offline.
+try:
+    import gspread
+    from google.oauth2.service_account import Credentials
+    SHEETS_AVAILABLE = True
+except ImportError:
+    SHEETS_AVAILABLE = False
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -21,49 +30,154 @@ st.set_page_config(
 # --- CONSTANTES GLOBAIS ---
 DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
-ADMIN_USER = "fux_concurseiro" # Usuário Moderador
+ADMIN_USER = "fux_concurseiro" 
 
-# --- FUNÇÕES DE PERSISTÊNCIA (JSON) ---
+# Configuração da Planilha na Nuvem
+# IMPORTANTE: A planilha deve ser criada no Google Drive da conta 'mentoriaspartajus@gmail.com'
+# e compartilhada com o e-mail da Service Account (client_email do secrets) com permissão de EDITOR.
+SHEET_NAME = "SpartaJus_DB" 
+
+# --- GERENCIAMENTO DE API KEY (IA) ---
+ENCRYPTED_KEY_LOCAL = "QUl6YVN5RFI1VTdHeHNCZVVVTFE5M1N3UG9VNl9CaGl3VHZzMU9n"
+
+def get_api_key():
+    if "GEMINI_API_KEY" in st.secrets:
+        return st.secrets["GEMINI_API_KEY"]
+    try:
+        return base64.b64decode(ENCRYPTED_KEY_LOCAL).decode("utf-8")
+    except Exception:
+        return ""
+
+# --- FUNÇÕES DE GOOGLE SHEETS (PERSISTÊNCIA NA NUVEM) ---
+
+def get_google_credentials():
+    """Tenta obter credenciais do st.secrets para o Google Sheets."""
+    if "gcp_service_account" in st.secrets:
+        return st.secrets["gcp_service_account"]
+    return None
+
+def connect_to_sheets():
+    """Conecta ao Google Sheets usando gspread."""
+    if not SHEETS_AVAILABLE:
+        return None
+    
+    creds_dict = get_google_credentials()
+    if not creds_dict:
+        return None
+
+    try:
+        scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+        client = gspread.authorize(creds)
+        return client
+    except Exception as e:
+        # Silencia erros de conexão na interface principal para não assustar o usuário,
+        # mas imprime no console para debug.
+        print(f"Erro ao conectar Google Sheets: {e}")
+        return None
+
+def sync_down_from_sheets():
+    """
+    Baixa os dados da planilha e atualiza o JSON local.
+    Isso garante que, se o servidor reiniciar, os dados são recuperados da conta mentoriaspartajus@gmail.com.
+    """
+    client = connect_to_sheets()
+    if not client: return False # Modo Offline
+
+    try:
+        # Tenta abrir a planilha. Se a conta mentoriaspartajus não tiver compartilhado, vai dar erro aqui.
+        sheet = client.open(SHEET_NAME).sheet1
+        records = sheet.get_all_values()
+        
+        cloud_db = {}
+        for row in records:
+            if len(row) >= 2:
+                key = row[0]
+                try:
+                    value = json.loads(row[1])
+                    cloud_db[key] = value
+                except:
+                    pass # Ignora linhas inválidas
+        
+        if cloud_db:
+            # Salva localmente o que veio da nuvem (Backup Local/Cache)
+            with open(DB_FILE, "w", encoding="utf-8") as f:
+                json.dump(cloud_db, f, indent=4, default=str)
+            return True
+            
+    except Exception as e:
+        print(f"Erro ao baixar do Sheets: {e}")
+        return False
+
+def sync_up_to_sheets(db_data):
+    """
+    Envia os dados locais para a planilha na conta mentoriaspartajus@gmail.com.
+    """
+    client = connect_to_sheets()
+    if not client: return False
+
+    try:
+        sheet = client.open(SHEET_NAME).sheet1
+        # Prepara dados para formato de lista [[Chave, JSON_String], ...]
+        rows_to_update = []
+        for key, value in db_data.items():
+            json_str = json.dumps(value, default=str)
+            rows_to_update.append([key, json_str])
+        
+        # Limpa e reescreve (Método simples para consistência)
+        sheet.clear()
+        sheet.update('A1', rows_to_update)
+        return True
+    except Exception as e:
+        print(f"Erro ao subir para Sheets: {e}")
+        return False
+
+# --- FUNÇÕES DE PERSISTÊNCIA LOCAL (JSON ATÔMICO) ---
 def load_db():
-    """Carrega o banco de dados com tratamento de erro reforçado."""
+    # Tenta sincronizar da nuvem primeiro (garante dados frescos após hibernação)
+    if "db_synced" not in st.session_state:
+        success = sync_down_from_sheets()
+        if success:
+            st.session_state["db_synced"] = True
+    
     if not os.path.exists(DB_FILE):
         return {}
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
             content = f.read().strip()
-            if not content: return {} # Arquivo vazio
+            if not content: return {} 
             return json.loads(content)
-    except json.JSONDecodeError as e:
-        st.error(f"⚠️ Aviso de Sistema: O arquivo de dados parece corrompido ou ilegível. ({e})")
-        return {}
-    except Exception as e:
-        st.error(f"Erro ao ler banco de dados: {e}")
+    except json.JSONDecodeError:
         return {}
 
 def save_db(db_data):
-    """Salva os dados no arquivo JSON de forma segura."""
+    # 1. Salva Local (Atômico) - Seu backup físico no servidor/PC
+    temp_file = f"{DB_FILE}.tmp"
     try:
-        with open(DB_FILE, "w", encoding="utf-8") as f:
+        with open(temp_file, "w", encoding="utf-8") as f:
             json.dump(db_data, f, indent=4, default=str)
+        f.flush()
+        os.fsync(f.fileno()) 
+        os.replace(temp_file, DB_FILE)
     except Exception as e:
-        st.error(f"Erro grave ao salvar dados: {e}")
+        st.error(f"Erro salvamento local: {e}")
+    
+    # 2. Salva na Nuvem (Google Sheets - mentoriaspartajus@gmail.com)
+    # Fazemos isso de forma "silenciosa" para não travar a UI se a net estiver lenta
+    try:
+        sync_up_to_sheets(db_data)
+    except:
+        pass # Falha silenciosa na nuvem, garante funcionamento local
 
 # --- AUTO-CRIAÇÃO E PROTEÇÃO DE USUÁRIOS ---
 def ensure_users_exist():
-    """
-    Garante que os usuários principais existam no banco de dados.
-    NÃO APAGA DADOS EXISTENTES. Apenas cria se faltar.
-    """
     db = load_db()
     data_changed = False
-    
-    # Lista de usuários VIPs para recuperação
     vip_users = {
         "fux_concurseiro": "Senha128",
         "steissy": "Mudar123",
         "JuOlebar": "Mudar123"
     }
-    
     for user, default_pass in vip_users.items():
         if user not in db:
             db[user] = {
@@ -74,217 +188,84 @@ def ensure_users_exist():
                 "mod_message": ""
             }
             data_changed = True
-    
     if data_changed:
         save_db(db)
 
-# Executa a verificação ao carregar o script
 ensure_users_exist()
 
 # --- ESTILOS CSS (CLEAN UI + TEMA ESPARTANO) ---
 st.markdown("""
     <style>
-    /* --- REMOÇÃO DE ELEMENTOS VISUAIS DO STREAMLIT --- */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     [data-testid="stToolbar"] {visibility: hidden;}
     
-    /* Fundo Geral */
-    .stApp {
-        background-color: #708090; /* Ardósia */
-        color: #C2D5ED; /* Azul Claro/Gelo */
-    }
+    .stApp { background-color: #708090; color: #C2D5ED; }
+    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
     
-    /* Texto Geral e Labels */
-    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander {
-        color: #C2D5ED !important;
-    }
-
-    /* Inputs */
     .stTextInput > div > div > input, 
     .stNumberInput > div > div > input, 
     .stDateInput > div > div > input,
     .stTimeInput > div > div > input,
     .stSelectbox > div > div > div,
     .stTextArea > div > div > textarea {
-        background-color: #4a5a6a; /* Tom mais escuro de ardósia */
-        color: #C2D5ED;
-        border-color: #C4A484; /* Marrom */
+        background-color: #4a5a6a; color: #C2D5ED; border-color: #C4A484;
     }
+    ::placeholder { color: #a0b0c0 !important; opacity: 0.7; }
     
-    /* Placeholder e textos secundários */
-    ::placeholder {
-        color: #a0b0c0 !important;
-        opacity: 0.7;
-    }
-    
-    /* Títulos - Azul Gelo (#C2D5ED) */
     h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
-        color: #C2D5ED !important; 
-        font-family: 'Helvetica Neue', sans-serif;
-        text-shadow: 1px 1px 2px black;
+        color: #C2D5ED !important; font-family: 'Helvetica Neue', sans-serif; text-shadow: 1px 1px 2px black;
     }
     
-    /* Sidebar */
-    [data-testid="stSidebar"] {
-        background-color: #586878; 
-        border-right: 2px solid #C4A484;
-    }
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-        color: #C2D5ED !important;
-    }
+    [data-testid="stSidebar"] { background-color: #586878; border-right: 2px solid #C4A484; }
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 { color: #C2D5ED !important; }
     
-    /* Botões */
     .stButton>button {
-        background-color: #4a5a6a;
-        color: #C2D5ED; 
-        border: 1px solid #D4AF37; 
-        border-radius: 4px;
-        height: 3em;
-        font-weight: bold;
-        transition: all 0.3s;
+        background-color: #4a5a6a; color: #C2D5ED; border: 1px solid #D4AF37; 
+        border-radius: 4px; height: 3em; font-weight: bold; transition: all 0.3s;
     }
     .stButton>button:hover {
-        background-color: #D4AF37; 
-        color: #2c3e50; 
-        border-color: #C2D5ED;
+        background-color: #D4AF37; color: #2c3e50; border-color: #C2D5ED;
     }
     
-    /* Cards Personalizados */
-    .metric-card {
-        background-color: #586878;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        text-align: center;
-        border: 1px solid #C4A484; 
-    }
-    .metric-card h4, .metric-card p {
-        color: #C2D5ED !important;
-    }
+    .metric-card { background-color: #586878; padding: 15px; border-radius: 8px; border: 1px solid #C4A484; }
+    .metric-card h4, .metric-card p { color: #C2D5ED !important; }
     
     .rank-card {
-        background: linear-gradient(90deg, #3e4e5e, #586878);
-        color: #C2D5ED;
-        padding: 20px;
-        border-radius: 8px;
-        text-align: center;
-        margin-bottom: 20px;
-        border: 2px solid #D4AF37;
-        box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+        background: linear-gradient(90deg, #3e4e5e, #586878); color: #C2D5ED;
+        padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px;
+        border: 2px solid #D4AF37; box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
     }
     
-    /* Mod Message Box */
     .mod-message {
-        background-color: #2c3e50;
-        border-left: 5px solid #D4AF37;
-        border-right: 1px solid #D4AF37;
-        border-top: 1px solid #D4AF37;
-        border-bottom: 1px solid #D4AF37;
-        padding: 15px;
-        margin-top: 15px;
-        border-radius: 8px;
-        color: #C2D5ED;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        background-color: #2c3e50; border-left: 5px solid #D4AF37;
+        border: 1px solid #D4AF37; padding: 15px; margin-top: 15px;
+        border-radius: 8px; color: #C2D5ED; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     }
-    
     .private-message {
-        background-color: #3e2723; /* Fundo avermelhado escuro para destaque privado */
-        border: 2px dashed #D4AF37;
-        padding: 15px;
-        margin-bottom: 20px;
-        border-radius: 8px;
-        color: #C2D5ED;
+        background-color: #3e2723; border: 2px dashed #D4AF37;
+        padding: 15px; margin-bottom: 20px; border-radius: 8px; color: #C2D5ED;
     }
 
-    /* Podium Cards */
-    .podium-gold {
-        background: linear-gradient(180deg, #D4AF37 0%, #B8860B 100%);
-        color: #000 !important;
-        padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-        border: 2px solid #FFD700;
-        transform: scale(1.05);
-        box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
-    }
-    .podium-gold h1, .podium-gold h2, .podium-gold p {
-        color: #000 !important;
-        text-shadow: none;
-    }
+    .podium-gold { background: linear-gradient(180deg, #D4AF37 0%, #B8860B 100%); color: #000 !important; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid #FFD700; transform: scale(1.05); }
+    .podium-silver { background: linear-gradient(180deg, #C0C0C0 0%, #A9A9A9 100%); color: #000 !important; padding: 15px; border-radius: 10px; text-align: center; border: 2px solid #D3D3D3; margin-top: 15px; }
+    .podium-bronze { background: linear-gradient(180deg, #CD7F32 0%, #8B4513 100%); color: #fff !important; padding: 15px; border-radius: 10px; text-align: center; border: 2px solid #A0522D; margin-top: 25px; }
+    .podium-gold p, .podium-silver p, .podium-bronze p, .podium-gold h*, .podium-silver h*, .podium-bronze h* { color: inherit !important; text-shadow: none; }
     
-    .podium-silver {
-        background: linear-gradient(180deg, #C0C0C0 0%, #A9A9A9 100%);
-        color: #000 !important;
-        padding: 15px;
-        border-radius: 10px;
-        text-align: center;
-        border: 2px solid #D3D3D3;
-        margin-top: 15px;
-    }
-    .podium-silver h2, .podium-silver h3, .podium-silver p {
-        color: #000 !important;
-        text-shadow: none;
-    }
-
-    .podium-bronze {
-        background: linear-gradient(180deg, #CD7F32 0%, #8B4513 100%);
-        color: #fff !important;
-        padding: 15px;
-        border-radius: 10px;
-        text-align: center;
-        border: 2px solid #A0522D;
-        margin-top: 25px;
-    }
-    .podium-bronze h2, .podium-bronze h3, .podium-bronze p {
-        color: #fff !important;
-        text-shadow: none;
-    }
+    [data-testid="stDataFrame"] { border: 1px solid #C4A484; background-color: #4a5a6a; }
     
-    /* Tabelas */
-    [data-testid="stDataFrame"] {
-        border: 1px solid #C4A484;
-        background-color: #4a5a6a;
-    }
-    
-    /* Container da Árvore */
     .tree-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-top: 20px;
-        background-color: #4a5a6a;
-        border-radius: 100%;
-        width: 350px;
-        height: 350px;
-        margin-left: auto;
-        margin-right: auto;
-        border: 4px solid #C4A484;
-        overflow: hidden; 
+        display: flex; justify-content: center; align-items: center; margin-top: 20px;
+        background-color: #4a5a6a; border-radius: 100%; width: 350px; height: 350px;
+        margin-left: auto; margin-right: auto; border: 4px solid #C4A484; overflow: hidden; 
     }
     
-    /* Toast e Mensagens */
-    .stToast {
-        background-color: #586878 !important;
-        color: #C2D5ED !important;
-    }
-    .stAlert {
-        background-color: #4a5a6a;
-        color: #C2D5ED;
-        border: 1px solid #C4A484;
-    }
-
-    /* LOGO HARMONIZATION */
-    .stImage {
-        display: flex;
-        justify-content: center;
-    }
-    .stImage img {
-        width: 100%; 
-        mix-blend-mode: multiply;
-        border-radius: 10px;
-    }
+    .stToast { background-color: #586878 !important; color: #C2D5ED !important; }
+    .stAlert { background-color: #4a5a6a; color: #C2D5ED; border: 1px solid #C4A484; }
+    
+    .stImage { display: flex; justify-content: center; }
+    .stImage img { width: 100%; mix-blend-mode: multiply; border-radius: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -328,11 +309,9 @@ def generate_tree_svg(branches):
     
     leaves_svg = ""
     random.seed(42)
-    trunk_h = 30 + (branches * 0.5)
-    trunk_h = min(trunk_h, 60)
+    trunk_h = min(30 + (branches * 0.5), 60)
     trunk_y = 100 - trunk_h
-    count = max(1, branches)
-    count = min(count, 150)
+    count = min(max(1, branches), 150)
     
     for i in range(count):
         cx = 50 + random.randint(-20 - int(branches/2), 20 + int(branches/2))
@@ -392,6 +371,33 @@ def calculate_streak(logs):
             
     return streak
 
+# --- PROMPT DO SISTEMA (ORÁCULO) ---
+ORACLE_SYSTEM_PROMPT = """
+Responda como um especialista em concursos públicos jurídicos na área do direito, principalmente ministério público, magistratura e procuradorias de estado e capitais municipais, considere também uma vasta experiência como membro presidente de diversas bancas examinadoras ao longo de 15 anos, aprovado em diversos concursos de carreira, especialista em responder provas discursivas com objetividade e assertividade.
+Portanto, todas as respostas devem trazer um conceito objetivo, acompanhado de um raciocínio objetivo que o sustenta, além de um exemplo prático, onde até uma criança de 7 anos possa visualizar e entender o texto, proporcionando um aprendizado acelerado.
+Para tanto a linguagem da escrita deve ser clara, coesa, simples e assertiva.
+Além disso, após cada pergunta, questione outros pontos a serem explorados e que derivam do assunto tratado de forma estratégica e associativa, para que o assunto possa ser aprofundado se assim o usuário desejar.
+
+Por fim, use estas regras exatamente como estão em todas as respostas.
+Não reinterprete.
+• Do not invent or assume facts.
+• If unconfirmed, say:
+- "I cannot verify this."
+- "I do not have access to that information."
+• Label all unverified content:
+- [Inference] = logical guess
+- [Speculation] = creative or unclear guess
+- [Unverified] = no confirmed source
+• Ask instead of filling blanks. Do not change input.
+• If any part is unverified, label the full response.
+• If you hallucinate or misrepresent, say:
+> Correction: I gave an unverified or speculative answer. It should have been labeled.
+• Do not use the following unless quoting or citing:
+- Prevent, Guarantee, Will never, Fixes, Eliminates, Ensures that
+• For behavior claims, include:
+- [Unverified] or [Inferencel and a note that this is expected behavior, not guaranteed
+"""
+
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
@@ -402,12 +408,13 @@ def login_page():
     st.title("🏛️ Mentor SpartaJus - Login")
     st.markdown("### Bem-vindo ao Campo de Batalha do Conhecimento")
     
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        st.subheader("Entrar")
-        username = st.text_input("Usuário").strip() 
-        password = st.text_input("Senha", type="password")
-        if st.button("Login"):
+    tab1, tab2, tab3 = st.tabs(["🔑 Entrar", "📝 Registrar", "🔄 Alterar Senha"])
+    
+    with tab1:
+        st.subheader("Acessar o Sistema")
+        username = st.text_input("Usuário", key="login_user").strip() 
+        password = st.text_input("Senha", type="password", key="login_pass")
+        if st.button("Login", key="btn_login"):
             db = load_db()
             if username in db and db[username]['password'] == password:
                 st.session_state['user'] = username
@@ -417,11 +424,11 @@ def login_page():
             else:
                 st.error("Usuário ou senha incorretos.")
 
-    with col2:
-        st.subheader("Registrar")
-        new_user = st.text_input("Novo Usuário").strip()
-        new_pass = st.text_input("Nova Senha", type="password")
-        if st.button("Criar Conta"):
+    with tab2:
+        st.subheader("Novo Recruta")
+        new_user = st.text_input("Novo Usuário", key="reg_user").strip()
+        new_pass = st.text_input("Nova Senha", type="password", key="reg_pass")
+        if st.button("Criar Conta", key="btn_reg"):
             db = load_db()
             if new_user in db:
                 st.error("Usuário já existe.")
@@ -430,12 +437,28 @@ def login_page():
                     "password": new_pass,
                     "logs": [],
                     "tree_branches": 1,
-                    "created_at": str(datetime.now())
+                    "created_at": str(datetime.now()),
+                    "mod_message": ""
                 }
                 save_db(db)
-                st.success("Conta criada! Faça login.")
+                st.success("Conta criada! Faça login na aba 'Entrar'.")
             else:
                 st.warning("Preencha todos os campos.")
+
+    with tab3:
+        st.subheader("Atualizar Credenciais")
+        with st.form("change_pass_form"):
+            cp_user = st.text_input("Usuário").strip()
+            cp_old_pass = st.text_input("Senha Atual", type="password")
+            cp_new_pass = st.text_input("Nova Senha", type="password")
+            if st.form_submit_button("Salvar Nova Senha"):
+                db = load_db()
+                if cp_user in db and db[cp_user]['password'] == cp_old_pass:
+                    db[cp_user]['password'] = cp_new_pass
+                    save_db(db)
+                    st.success("Senha alterada com sucesso!")
+                else:
+                    st.error("Dados incorretos.")
 
 def save_current_user_data():
     if 'user' in st.session_state and 'user_data' in st.session_state:
@@ -461,6 +484,9 @@ def main_app():
     if 'tree_branches' not in user_data: user_data['tree_branches'] = 1
     if 'mod_message' not in user_data: user_data['mod_message'] = "" 
     
+    # --- CONFIGURAR API KEY FIXA (Decodificando) ---
+    st.session_state.api_key = get_api_key()
+    
     # --- CÁLCULOS TOTAIS ---
     total_questions = sum([log.get('questoes', 0) for log in user_data['logs']])
     total_pages = sum([log.get('paginas', 0) for log in user_data['logs']])
@@ -474,6 +500,12 @@ def main_app():
     with st.sidebar:
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE)
+            
+        # STATUS DO GOOGLE SHEETS
+        if SHEETS_AVAILABLE and get_google_credentials():
+            st.caption("🟢 Conectado à Nuvem (Google Sheets)")
+        else:
+            st.caption("🟠 Modo Offline (Local JSON)")
             
         if is_real_admin or is_admin_mode:
             with st.expander("🛡️ PAINEL DO MODERADOR", expanded=True):
@@ -512,7 +544,7 @@ def main_app():
         st.divider()
         st.header("⚙️ Configurações")
         
-        # --- NOVO: BOTÃO DE BACKUP NA BARRA LATERAL ---
+        # --- BOTÃO DE BACKUP NA BARRA LATERAL ---
         st.markdown("### 💾 Backup de Segurança")
         if os.path.exists(DB_FILE):
             with open(DB_FILE, "r", encoding="utf-8") as f:
@@ -521,12 +553,12 @@ def main_app():
                     data=f,
                     file_name=f"backup_spartajus_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
                     mime="application/json",
-                    help="Clique para salvar uma cópia de segurança de todos os registros."
+                    help="Salva TODOS os dados: usuários, logs, mensagens e alertas."
                 )
         else:
             st.info("Nenhum dado para backup ainda.")
         
-        st.info("Versão: SpartaJus Clean Edition")
+        st.info("Versão: SpartaJus Cloud-Ready")
 
     # --- CABEÇALHO ---
     st.title("🏛️ Mentor SpartaJus")
@@ -589,7 +621,6 @@ def main_app():
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             
             # --- RECADO DO MODERADOR (Individual) - Visão do Usuário ---
-            # Esta mensagem aparece aqui também para garantir que o usuário veja logo ao abrir a árvore
             if user_data.get('mod_message'):
                 st.markdown(f"""
                 <div class="private-message">
@@ -1030,54 +1061,42 @@ def main_app():
             st.subheader("📨 Mensagens Individuais")
             
             # --- ÁREA DE ENVIO (ADMIN) ---
-            # Adicionada ferramenta de reconstrução histórica aqui para facilitar
             if user == ADMIN_USER:
                 st.markdown("---")
-                st.markdown("**Reconstrução / Mensagens**")
+                st.markdown("**Enviar Mensagem Privada**")
                 
                 all_users = [k for k in db.keys() if k != "global_alerts" and k != ADMIN_USER]
-                target_msg_user = st.selectbox("Destinatário / Alvo:", all_users, key="msg_target")
+                target_msg_user = st.selectbox("Destinatário:", all_users, key="msg_target")
                 
-                # --- ABA INTERNA: MENSAGEM ---
-                with st.expander("💬 Enviar Mensagem Privada", expanded=False):
-                    current_msg = db[target_msg_user].get('mod_message', '')
-                    if current_msg:
-                        st.warning(f"Atual: '{current_msg}'")
-                    
-                    new_priv_msg = st.text_area("Nova Mensagem:", key="priv_txt")
-                    if st.button("Enviar Msg"):
-                        db[target_msg_user]['mod_message'] = new_priv_msg
-                        save_db(db)
-                        st.success(f"Enviado para {target_msg_user}!")
-                        st.rerun()
+                # Mostra se já existe mensagem
+                current_msg = db[target_msg_user].get('mod_message', '')
+                if current_msg:
+                    st.warning(f"⚠️ Este usuário já tem uma mensagem ativa: '{current_msg}'")
+                
+                new_priv_msg = st.text_area("Mensagem Privada:", key="priv_txt")
+                
+                if st.button("Enviar/Atualizar Mensagem"):
+                    db[target_msg_user]['mod_message'] = new_priv_msg
+                    save_db(db)
+                    st.success(f"Mensagem enviada para {target_msg_user}!")
+                    st.rerun()
+                
+                st.markdown("---")
+                st.markdown("**Gerenciar Mensagens Ativas**")
+                # Listar usuários com mensagens
+                users_with_msg = [u for u in all_users if db[u].get('mod_message')]
+                if not users_with_msg:
+                    st.caption("Nenhum usuário possui mensagens pendentes.")
+                else:
+                    for u_msg in users_with_msg:
+                        with st.container():
+                            st.markdown(f"**{u_msg}:** {db[u_msg]['mod_message']}")
+                            if st.button(f"Apagar Msg de {u_msg}", key=f"del_msg_{u_msg}"):
+                                db[u_msg]['mod_message'] = ""
+                                save_db(db)
+                                st.rerun()
+                            st.divider()
 
-                # --- ABA INTERNA: RECONSTRUÇÃO HISTÓRICA (RESGATE DE DADOS) ---
-                with st.expander("🔧 Reconstrução Histórica (Resgate)", expanded=False):
-                    st.warning("Use para adicionar registros retroativos perdidos.")
-                    with st.form("rebuild_data_form"):
-                        r_date = st.date_input("Data Antiga", value=date.today())
-                        r_pag = st.number_input("Páginas", min_value=0)
-                        r_que = st.number_input("Questões", min_value=0)
-                        r_ser = st.number_input("Séries", min_value=0)
-                        r_submit = st.form_submit_button("Adicionar ao Histórico do Usuário")
-                        
-                        if r_submit:
-                            new_entry = {
-                                "data": r_date.strftime("%Y-%m-%d"),
-                                "acordou": "00:00",
-                                "dormiu": "00:00",
-                                "paginas": r_pag,
-                                "questoes": r_que,
-                                "series": r_ser,
-                                "estudou": True,
-                                "materias": ["Recuperado pelo Admin"]
-                            }
-                            db[target_msg_user]['logs'].append(new_entry)
-                            # Recalcula árvore simples
-                            db[target_msg_user]['tree_branches'] += 1
-                            save_db(db)
-                            st.success(f"Dados adicionados para {target_msg_user}!")
-                            
             # --- ÁREA DE VISUALIZAÇÃO (USUÁRIO COMUM) ---
             else:
                 my_msg = user_data.get('mod_message', '')
@@ -1147,8 +1166,74 @@ def main_app():
                             st.rerun()
                 else:
                     st.info("Não há outros usuários para excluir.")
+            
+            st.divider()
+            st.markdown("### 🔧 Reconstrução Histórica (Resgate)")
+            st.warning("Use para adicionar registros retroativos perdidos para qualquer usuário.")
+            
+            # Reconstrução de dados agora na aba de moderação para melhor organização
+            db_rec = load_db()
+            all_users_rec = [k for k in db_rec.keys() if k != "global_alerts" and k != ADMIN_USER]
+            
+            if all_users_rec:
+                target_rec_user = st.selectbox("Usuário Alvo:", all_users_rec, key="rec_target")
+                with st.form("rebuild_data_form_mod"):
+                    r_date = st.date_input("Data Antiga", value=date.today())
+                    c1, c2, c3 = st.columns(3)
+                    with c1: r_pag = st.number_input("Páginas", min_value=0)
+                    with c2: r_que = st.number_input("Questões", min_value=0)
+                    with c3: r_ser = st.number_input("Séries", min_value=0)
+                    
+                    r_submit = st.form_submit_button("Adicionar ao Histórico")
+                    
+                    if r_submit:
+                        new_entry = {
+                            "data": r_date.strftime("%Y-%m-%d"),
+                            "acordou": "00:00",
+                            "dormiu": "00:00",
+                            "paginas": r_pag,
+                            "questoes": r_que,
+                            "series": r_ser,
+                            "estudou": True,
+                            "materias": ["Recuperado pelo Admin"]
+                        }
+                        db_rec[target_rec_user]['logs'].append(new_entry)
+                        db_rec[target_rec_user]['tree_branches'] += 1
+                        save_db(db_rec)
+                        st.success(f"Dados adicionados para {target_rec_user}!")
 
-# --- CONTROLE DE FLUXO LOGIN ---
+    # --- ABA 5: ORÁCULO ---
+    with tab4:
+        st.subheader("🤖 Oráculo SpartaJus")
+        if not st.session_state.api_key: st.warning("Chave API não configurada.")
+        else:
+            if 'chat_history' not in st.session_state: st.session_state.chat_history = []
+            for m in st.session_state.chat_history:
+                with st.chat_message(m["role"]): st.write(m["content"])
+            
+            if p := st.chat_input("Consulte o Oráculo..."):
+                st.session_state.chat_history.append({"role": "user", "content": p})
+                with st.chat_message("user"): st.write(p)
+                with st.chat_message("assistant"):
+                    with st.spinner("Pensando..."):
+                        try:
+                            genai.configure(api_key=st.session_state.api_key)
+                            # Tenta Flash -> Pro
+                            try:
+                                model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=ORACLE_SYSTEM_PROMPT)
+                                res = model.generate_content(p)
+                            except:
+                                model = genai.GenerativeModel('gemini-pro', system_instruction=ORACLE_SYSTEM_PROMPT)
+                                res = model.generate_content(p)
+                            
+                            r_text = remove_markdown(res.text)
+                            st.write(r_text)
+                            st.session_state.chat_history.append({"role": "assistant", "content": r_text})
+                        except Exception as e:
+                            if "429" in str(e): st.warning("Muitas requisições. Tente em breve.")
+                            else: st.error(f"Erro: {e}")
+
+# --- EXECUÇÃO ---
 if 'user' not in st.session_state:
     login_page()
 else:
