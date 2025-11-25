@@ -25,15 +25,19 @@ ADMIN_USER = "fux_concurseiro" # Usuário Moderador
 
 # --- FUNÇÕES DE PERSISTÊNCIA (JSON) ---
 def load_db():
-    """Carrega o banco de dados. Se não existir ou estiver corrompido, retorna vazio."""
+    """Carrega o banco de dados com tratamento de erro reforçado."""
     if not os.path.exists(DB_FILE):
         return {}
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        # Backup de segurança se o arquivo estiver corrompido seria ideal, 
-        # mas aqui retornamos vazio para não quebrar o app.
+            content = f.read().strip()
+            if not content: return {} # Arquivo vazio
+            return json.loads(content)
+    except json.JSONDecodeError as e:
+        st.error(f"⚠️ Aviso de Sistema: O arquivo de dados parece corrompido ou ilegível. ({e})")
+        return {}
+    except Exception as e:
+        st.error(f"Erro ao ler banco de dados: {e}")
         return {}
 
 def save_db(db_data):
@@ -44,26 +48,24 @@ def save_db(db_data):
     except Exception as e:
         st.error(f"Erro grave ao salvar dados: {e}")
 
-# --- AUTO-CRIAÇÃO E PROTEÇÃO DE USUÁRIOS (Correção de Login) ---
+# --- AUTO-CRIAÇÃO E PROTEÇÃO DE USUÁRIOS ---
 def ensure_users_exist():
     """
     Garante que os usuários principais existam no banco de dados.
-    Isso previne erro de login se o arquivo for deletado ou movido.
     NÃO APAGA DADOS EXISTENTES. Apenas cria se faltar.
     """
     db = load_db()
     data_changed = False
     
-    # Lista de usuários VIPs que não podem ficar de fora
+    # Lista de usuários VIPs para recuperação
     vip_users = {
-        "fux_concurseiro": "Senha128",  # Admin
-        "steissy": "Mudar123",          # Usuário Ativo 1
-        "JuOlebar": "Mudar123"          # Usuário Ativo 2
+        "fux_concurseiro": "Senha128",
+        "steissy": "Mudar123",
+        "JuOlebar": "Mudar123"
     }
     
     for user, default_pass in vip_users.items():
         if user not in db:
-            # Cria o usuário apenas se ele não existir
             db[user] = {
                 "password": default_pass,
                 "logs": [],
@@ -76,7 +78,7 @@ def ensure_users_exist():
     if data_changed:
         save_db(db)
 
-# Executa a verificação crítica ao carregar o script
+# Executa a verificação ao carregar o script
 ensure_users_exist()
 
 # --- ESTILOS CSS (CLEAN UI + TEMA ESPARTANO) ---
@@ -509,6 +511,21 @@ def main_app():
             
         st.divider()
         st.header("⚙️ Configurações")
+        
+        # --- NOVO: BOTÃO DE BACKUP NA BARRA LATERAL ---
+        st.markdown("### 💾 Backup de Segurança")
+        if os.path.exists(DB_FILE):
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                st.download_button(
+                    label="Baixar Dados (JSON)",
+                    data=f,
+                    file_name=f"backup_spartajus_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
+                    mime="application/json",
+                    help="Clique para salvar uma cópia de segurança de todos os registros."
+                )
+        else:
+            st.info("Nenhum dado para backup ainda.")
+        
         st.info("Versão: SpartaJus Clean Edition")
 
     # --- CABEÇALHO ---
@@ -1013,42 +1030,54 @@ def main_app():
             st.subheader("📨 Mensagens Individuais")
             
             # --- ÁREA DE ENVIO (ADMIN) ---
+            # Adicionada ferramenta de reconstrução histórica aqui para facilitar
             if user == ADMIN_USER:
                 st.markdown("---")
-                st.markdown("**Enviar Mensagem Privada**")
+                st.markdown("**Reconstrução / Mensagens**")
                 
                 all_users = [k for k in db.keys() if k != "global_alerts" and k != ADMIN_USER]
-                target_msg_user = st.selectbox("Destinatário:", all_users, key="msg_target")
+                target_msg_user = st.selectbox("Destinatário / Alvo:", all_users, key="msg_target")
                 
-                # Mostra se já existe mensagem
-                current_msg = db[target_msg_user].get('mod_message', '')
-                if current_msg:
-                    st.warning(f"⚠️ Este usuário já tem uma mensagem ativa: '{current_msg}'")
-                
-                new_priv_msg = st.text_area("Mensagem Privada:", key="priv_txt")
-                
-                if st.button("Enviar/Atualizar Mensagem"):
-                    db[target_msg_user]['mod_message'] = new_priv_msg
-                    save_db(db)
-                    st.success(f"Mensagem enviada para {target_msg_user}!")
-                    st.rerun()
-                
-                st.markdown("---")
-                st.markdown("**Gerenciar Mensagens Ativas**")
-                # Listar usuários com mensagens
-                users_with_msg = [u for u in all_users if db[u].get('mod_message')]
-                if not users_with_msg:
-                    st.caption("Nenhum usuário possui mensagens pendentes.")
-                else:
-                    for u_msg in users_with_msg:
-                        with st.container():
-                            st.markdown(f"**{u_msg}:** {db[u_msg]['mod_message']}")
-                            if st.button(f"Apagar Msg de {u_msg}", key=f"del_msg_{u_msg}"):
-                                db[u_msg]['mod_message'] = ""
-                                save_db(db)
-                                st.rerun()
-                            st.divider()
+                # --- ABA INTERNA: MENSAGEM ---
+                with st.expander("💬 Enviar Mensagem Privada", expanded=False):
+                    current_msg = db[target_msg_user].get('mod_message', '')
+                    if current_msg:
+                        st.warning(f"Atual: '{current_msg}'")
+                    
+                    new_priv_msg = st.text_area("Nova Mensagem:", key="priv_txt")
+                    if st.button("Enviar Msg"):
+                        db[target_msg_user]['mod_message'] = new_priv_msg
+                        save_db(db)
+                        st.success(f"Enviado para {target_msg_user}!")
+                        st.rerun()
 
+                # --- ABA INTERNA: RECONSTRUÇÃO HISTÓRICA (RESGATE DE DADOS) ---
+                with st.expander("🔧 Reconstrução Histórica (Resgate)", expanded=False):
+                    st.warning("Use para adicionar registros retroativos perdidos.")
+                    with st.form("rebuild_data_form"):
+                        r_date = st.date_input("Data Antiga", value=date.today())
+                        r_pag = st.number_input("Páginas", min_value=0)
+                        r_que = st.number_input("Questões", min_value=0)
+                        r_ser = st.number_input("Séries", min_value=0)
+                        r_submit = st.form_submit_button("Adicionar ao Histórico do Usuário")
+                        
+                        if r_submit:
+                            new_entry = {
+                                "data": r_date.strftime("%Y-%m-%d"),
+                                "acordou": "00:00",
+                                "dormiu": "00:00",
+                                "paginas": r_pag,
+                                "questoes": r_que,
+                                "series": r_ser,
+                                "estudou": True,
+                                "materias": ["Recuperado pelo Admin"]
+                            }
+                            db[target_msg_user]['logs'].append(new_entry)
+                            # Recalcula árvore simples
+                            db[target_msg_user]['tree_branches'] += 1
+                            save_db(db)
+                            st.success(f"Dados adicionados para {target_msg_user}!")
+                            
             # --- ÁREA DE VISUALIZAÇÃO (USUÁRIO COMUM) ---
             else:
                 my_msg = user_data.get('mod_message', '')
