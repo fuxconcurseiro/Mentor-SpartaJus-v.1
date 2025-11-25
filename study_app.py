@@ -31,22 +31,7 @@ st.set_page_config(
 DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
 ADMIN_USER = "fux_concurseiro" 
-
-# Configuração da Planilha na Nuvem
-# IMPORTANTE: A planilha deve ser criada no Google Drive da conta 'mentoriaspartajus@gmail.com'
-# e compartilhada com o e-mail da Service Account (client_email do secrets) com permissão de EDITOR.
 SHEET_NAME = "SpartaJus_DB" 
-
-# --- GERENCIAMENTO DE API KEY (IA) ---
-ENCRYPTED_KEY_LOCAL = "QUl6YVN5RFI1VTdHeHNCZVVVTFE5M1N3UG9VNl9CaGl3VHZzMU9n"
-
-def get_api_key():
-    if "GEMINI_API_KEY" in st.secrets:
-        return st.secrets["GEMINI_API_KEY"]
-    try:
-        return base64.b64decode(ENCRYPTED_KEY_LOCAL).decode("utf-8")
-    except Exception:
-        return ""
 
 # --- FUNÇÕES DE GOOGLE SHEETS (PERSISTÊNCIA NA NUVEM) ---
 
@@ -66,26 +51,20 @@ def connect_to_sheets():
         return None
 
     try:
-        scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
+        scope = ['[https://www.googleapis.com/auth/spreadsheets](https://www.googleapis.com/auth/spreadsheets)', '[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)']
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(creds)
         return client
     except Exception as e:
-        # Silencia erros de conexão na interface principal para não assustar o usuário,
-        # mas imprime no console para debug.
         print(f"Erro ao conectar Google Sheets: {e}")
         return None
 
 def sync_down_from_sheets():
-    """
-    Baixa os dados da planilha e atualiza o JSON local.
-    Isso garante que, se o servidor reiniciar, os dados são recuperados da conta mentoriaspartajus@gmail.com.
-    """
+    """Baixa os dados da planilha e atualiza o JSON local."""
     client = connect_to_sheets()
-    if not client: return False # Modo Offline
+    if not client: return False 
 
     try:
-        # Tenta abrir a planilha. Se a conta mentoriaspartajus não tiver compartilhado, vai dar erro aqui.
         sheet = client.open(SHEET_NAME).sheet1
         records = sheet.get_all_values()
         
@@ -97,10 +76,9 @@ def sync_down_from_sheets():
                     value = json.loads(row[1])
                     cloud_db[key] = value
                 except:
-                    pass # Ignora linhas inválidas
+                    pass 
         
         if cloud_db:
-            # Salva localmente o que veio da nuvem (Backup Local/Cache)
             with open(DB_FILE, "w", encoding="utf-8") as f:
                 json.dump(cloud_db, f, indent=4, default=str)
             return True
@@ -110,21 +88,17 @@ def sync_down_from_sheets():
         return False
 
 def sync_up_to_sheets(db_data):
-    """
-    Envia os dados locais para a planilha na conta mentoriaspartajus@gmail.com.
-    """
+    """Envia os dados locais para a planilha."""
     client = connect_to_sheets()
     if not client: return False
 
     try:
         sheet = client.open(SHEET_NAME).sheet1
-        # Prepara dados para formato de lista [[Chave, JSON_String], ...]
         rows_to_update = []
         for key, value in db_data.items():
             json_str = json.dumps(value, default=str)
             rows_to_update.append([key, json_str])
         
-        # Limpa e reescreve (Método simples para consistência)
         sheet.clear()
         sheet.update('A1', rows_to_update)
         return True
@@ -132,9 +106,8 @@ def sync_up_to_sheets(db_data):
         print(f"Erro ao subir para Sheets: {e}")
         return False
 
-# --- FUNÇÕES DE PERSISTÊNCIA LOCAL (JSON ATÔMICO) ---
+# --- FUNÇÕES DE PERSISTÊNCIA LOCAL ---
 def load_db():
-    # Tenta sincronizar da nuvem primeiro (garante dados frescos após hibernação)
     if "db_synced" not in st.session_state:
         success = sync_down_from_sheets()
         if success:
@@ -151,7 +124,7 @@ def load_db():
         return {}
 
 def save_db(db_data):
-    # 1. Salva Local (Atômico) - Seu backup físico no servidor/PC
+    # 1. Salva Local
     temp_file = f"{DB_FILE}.tmp"
     try:
         with open(temp_file, "w", encoding="utf-8") as f:
@@ -162,12 +135,11 @@ def save_db(db_data):
     except Exception as e:
         st.error(f"Erro salvamento local: {e}")
     
-    # 2. Salva na Nuvem (Google Sheets - mentoriaspartajus@gmail.com)
-    # Fazemos isso de forma "silenciosa" para não travar a UI se a net estiver lenta
+    # 2. Salva na Nuvem
     try:
         sync_up_to_sheets(db_data)
     except:
-        pass # Falha silenciosa na nuvem, garante funcionamento local
+        pass 
 
 # --- AUTO-CRIAÇÃO E PROTEÇÃO DE USUÁRIOS ---
 def ensure_users_exist():
@@ -193,7 +165,7 @@ def ensure_users_exist():
 
 ensure_users_exist()
 
-# --- ESTILOS CSS (CLEAN UI + TEMA ESPARTANO) ---
+# --- ESTILOS CSS ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -301,7 +273,7 @@ def generate_tree_svg(branches):
     scale = min(max(branches, 1), 50) / 10.0
     if branches <= 0:
         return """
-        <svg width="300" height="300" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <svg width="300" height="300" viewBox="0 0 100 100" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
             <rect x="40" y="80" width="20" height="20" fill="#5c4033" />
             <text x="50" y="70" font-size="5" text-anchor="middle" fill="#C2D5ED">A árvore secou...</text>
         </svg>
@@ -321,7 +293,7 @@ def generate_tree_svg(branches):
         leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}" opacity="0.9" />'
 
     return f"""
-    <svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <svg width="350" height="350" viewBox="0 0 100 100" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
         <rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />
         {leaves_svg}
         <text x="50" y="95" font-size="4" text-anchor="middle" fill="#C2D5ED">Ramos Vivos: {branches}</text>
@@ -370,33 +342,6 @@ def calculate_streak(logs):
             break
             
     return streak
-
-# --- PROMPT DO SISTEMA (ORÁCULO) ---
-ORACLE_SYSTEM_PROMPT = """
-Responda como um especialista em concursos públicos jurídicos na área do direito, principalmente ministério público, magistratura e procuradorias de estado e capitais municipais, considere também uma vasta experiência como membro presidente de diversas bancas examinadoras ao longo de 15 anos, aprovado em diversos concursos de carreira, especialista em responder provas discursivas com objetividade e assertividade.
-Portanto, todas as respostas devem trazer um conceito objetivo, acompanhado de um raciocínio objetivo que o sustenta, além de um exemplo prático, onde até uma criança de 7 anos possa visualizar e entender o texto, proporcionando um aprendizado acelerado.
-Para tanto a linguagem da escrita deve ser clara, coesa, simples e assertiva.
-Além disso, após cada pergunta, questione outros pontos a serem explorados e que derivam do assunto tratado de forma estratégica e associativa, para que o assunto possa ser aprofundado se assim o usuário desejar.
-
-Por fim, use estas regras exatamente como estão em todas as respostas.
-Não reinterprete.
-• Do not invent or assume facts.
-• If unconfirmed, say:
-- "I cannot verify this."
-- "I do not have access to that information."
-• Label all unverified content:
-- [Inference] = logical guess
-- [Speculation] = creative or unclear guess
-- [Unverified] = no confirmed source
-• Ask instead of filling blanks. Do not change input.
-• If any part is unverified, label the full response.
-• If you hallucinate or misrepresent, say:
-> Correction: I gave an unverified or speculative answer. It should have been labeled.
-• Do not use the following unless quoting or citing:
-- Prevent, Guarantee, Will never, Fixes, Eliminates, Ensures that
-• For behavior claims, include:
-- [Unverified] or [Inferencel and a note that this is expected behavior, not guaranteed
-"""
 
 # --- AUTH SYSTEM ---
 def login_page():
@@ -484,9 +429,6 @@ def main_app():
     if 'tree_branches' not in user_data: user_data['tree_branches'] = 1
     if 'mod_message' not in user_data: user_data['mod_message'] = "" 
     
-    # --- CONFIGURAR API KEY FIXA (Decodificando) ---
-    st.session_state.api_key = get_api_key()
-    
     # --- CÁLCULOS TOTAIS ---
     total_questions = sum([log.get('questoes', 0) for log in user_data['logs']])
     total_pages = sum([log.get('paginas', 0) for log in user_data['logs']])
@@ -558,7 +500,7 @@ def main_app():
         else:
             st.info("Nenhum dado para backup ainda.")
         
-        st.info("Versão: SpartaJus Cloud-Ready")
+        st.info("Versão: SpartaJus Clean Edition")
 
     # --- CABEÇALHO ---
     st.title("🏛️ Mentor SpartaJus")
@@ -1061,35 +1003,34 @@ def main_app():
             st.subheader("📨 Mensagens Individuais")
             
             # --- ÁREA DE ENVIO (ADMIN) ---
+            # Adicionada ferramenta de reconstrução histórica aqui para facilitar
             if user == ADMIN_USER:
                 st.markdown("---")
-                st.markdown("**Enviar Mensagem Privada**")
+                st.markdown("**Reconstrução / Mensagens**")
                 
                 all_users = [k for k in db.keys() if k != "global_alerts" and k != ADMIN_USER]
-                target_msg_user = st.selectbox("Destinatário:", all_users, key="msg_target")
+                target_msg_user = st.selectbox("Destinatário / Alvo:", all_users, key="msg_target")
                 
-                # Mostra se já existe mensagem
-                current_msg = db[target_msg_user].get('mod_message', '')
-                if current_msg:
-                    st.warning(f"⚠️ Este usuário já tem uma mensagem ativa: '{current_msg}'")
+                # --- ABA INTERNA: MENSAGEM ---
+                with st.expander("💬 Enviar Mensagem Privada", expanded=False):
+                    current_msg = db[target_msg_user].get('mod_message', '')
+                    if current_msg:
+                        st.warning(f"Atual: '{current_msg}'")
+                    
+                    new_priv_msg = st.text_area("Nova Mensagem:", key="priv_txt")
+                    if st.button("Enviar Msg"):
+                        db[target_msg_user]['mod_message'] = new_priv_msg
+                        save_db(db)
+                        st.success(f"Enviado para {target_msg_user}!")
+                        st.rerun()
                 
-                new_priv_msg = st.text_area("Mensagem Privada:", key="priv_txt")
-                
-                if st.button("Enviar/Atualizar Mensagem"):
-                    db[target_msg_user]['mod_message'] = new_priv_msg
-                    save_db(db)
-                    st.success(f"Mensagem enviada para {target_msg_user}!")
-                    st.rerun()
-                
-                st.markdown("---")
-                st.markdown("**Gerenciar Mensagens Ativas**")
-                # Listar usuários com mensagens
-                users_with_msg = [u for u in all_users if db[u].get('mod_message')]
-                if not users_with_msg:
-                    st.caption("Nenhum usuário possui mensagens pendentes.")
-                else:
-                    for u_msg in users_with_msg:
-                        with st.container():
+                # --- ABA INTERNA: GERENCIAR MENSAGENS ATIVAS ---
+                with st.expander("📤 Gerenciar Mensagens Ativas", expanded=False):
+                    users_with_msg = [u for u in all_users if db[u].get('mod_message')]
+                    if not users_with_msg:
+                        st.caption("Nenhum usuário possui mensagens pendentes.")
+                    else:
+                        for u_msg in users_with_msg:
                             st.markdown(f"**{u_msg}:** {db[u_msg]['mod_message']}")
                             if st.button(f"Apagar Msg de {u_msg}", key=f"del_msg_{u_msg}"):
                                 db[u_msg]['mod_message'] = ""
@@ -1097,6 +1038,33 @@ def main_app():
                                 st.rerun()
                             st.divider()
 
+                # --- ABA INTERNA: RECONSTRUÇÃO HISTÓRICA (RESGATE DE DADOS) ---
+                with st.expander("🔧 Reconstrução Histórica (Resgate)", expanded=False):
+                    st.warning("Use para adicionar registros retroativos perdidos.")
+                    with st.form("rebuild_data_form"):
+                        r_date = st.date_input("Data Antiga", value=date.today())
+                        r_pag = st.number_input("Páginas", min_value=0)
+                        r_que = st.number_input("Questões", min_value=0)
+                        r_ser = st.number_input("Séries", min_value=0)
+                        r_submit = st.form_submit_button("Adicionar ao Histórico do Usuário")
+                        
+                        if r_submit:
+                            new_entry = {
+                                "data": r_date.strftime("%Y-%m-%d"),
+                                "acordou": "00:00",
+                                "dormiu": "00:00",
+                                "paginas": r_pag,
+                                "questoes": r_que,
+                                "series": r_ser,
+                                "estudou": True,
+                                "materias": ["Recuperado pelo Admin"]
+                            }
+                            db[target_msg_user]['logs'].append(new_entry)
+                            # Recalcula árvore simples
+                            db[target_msg_user]['tree_branches'] += 1
+                            save_db(db)
+                            st.success(f"Dados adicionados para {target_msg_user}!")
+                            
             # --- ÁREA DE VISUALIZAÇÃO (USUÁRIO COMUM) ---
             else:
                 my_msg = user_data.get('mod_message', '')
@@ -1166,74 +1134,8 @@ def main_app():
                             st.rerun()
                 else:
                     st.info("Não há outros usuários para excluir.")
-            
-            st.divider()
-            st.markdown("### 🔧 Reconstrução Histórica (Resgate)")
-            st.warning("Use para adicionar registros retroativos perdidos para qualquer usuário.")
-            
-            # Reconstrução de dados agora na aba de moderação para melhor organização
-            db_rec = load_db()
-            all_users_rec = [k for k in db_rec.keys() if k != "global_alerts" and k != ADMIN_USER]
-            
-            if all_users_rec:
-                target_rec_user = st.selectbox("Usuário Alvo:", all_users_rec, key="rec_target")
-                with st.form("rebuild_data_form_mod"):
-                    r_date = st.date_input("Data Antiga", value=date.today())
-                    c1, c2, c3 = st.columns(3)
-                    with c1: r_pag = st.number_input("Páginas", min_value=0)
-                    with c2: r_que = st.number_input("Questões", min_value=0)
-                    with c3: r_ser = st.number_input("Séries", min_value=0)
-                    
-                    r_submit = st.form_submit_button("Adicionar ao Histórico")
-                    
-                    if r_submit:
-                        new_entry = {
-                            "data": r_date.strftime("%Y-%m-%d"),
-                            "acordou": "00:00",
-                            "dormiu": "00:00",
-                            "paginas": r_pag,
-                            "questoes": r_que,
-                            "series": r_ser,
-                            "estudou": True,
-                            "materias": ["Recuperado pelo Admin"]
-                        }
-                        db_rec[target_rec_user]['logs'].append(new_entry)
-                        db_rec[target_rec_user]['tree_branches'] += 1
-                        save_db(db_rec)
-                        st.success(f"Dados adicionados para {target_rec_user}!")
 
-    # --- ABA 5: ORÁCULO ---
-    with tab4:
-        st.subheader("🤖 Oráculo SpartaJus")
-        if not st.session_state.api_key: st.warning("Chave API não configurada.")
-        else:
-            if 'chat_history' not in st.session_state: st.session_state.chat_history = []
-            for m in st.session_state.chat_history:
-                with st.chat_message(m["role"]): st.write(m["content"])
-            
-            if p := st.chat_input("Consulte o Oráculo..."):
-                st.session_state.chat_history.append({"role": "user", "content": p})
-                with st.chat_message("user"): st.write(p)
-                with st.chat_message("assistant"):
-                    with st.spinner("Pensando..."):
-                        try:
-                            genai.configure(api_key=st.session_state.api_key)
-                            # Tenta Flash -> Pro
-                            try:
-                                model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=ORACLE_SYSTEM_PROMPT)
-                                res = model.generate_content(p)
-                            except:
-                                model = genai.GenerativeModel('gemini-pro', system_instruction=ORACLE_SYSTEM_PROMPT)
-                                res = model.generate_content(p)
-                            
-                            r_text = remove_markdown(res.text)
-                            st.write(r_text)
-                            st.session_state.chat_history.append({"role": "assistant", "content": r_text})
-                        except Exception as e:
-                            if "429" in str(e): st.warning("Muitas requisições. Tente em breve.")
-                            else: st.error(f"Erro: {e}")
-
-# --- EXECUÇÃO ---
+# --- CONTROLE DE FLUXO LOGIN ---
 if 'user' not in st.session_state:
     login_page()
 else:
