@@ -51,7 +51,7 @@ def connect_to_sheets():
         return None
 
     try:
-        scope = ['[https://www.googleapis.com/auth/spreadsheets](https://www.googleapis.com/auth/spreadsheets)', '[https://www.googleapis.com/auth/drive](https://www.googleapis.com/auth/drive)']
+        scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive']
         creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
         client = gspread.authorize(creds)
         return client
@@ -124,13 +124,16 @@ def load_db():
         return {}
 
 def save_db(db_data):
-    # 1. Salva Local
+    # 1. Salva Local (CORREÇÃO DE INDENTAÇÃO APLICADA AQUI)
     temp_file = f"{DB_FILE}.tmp"
     try:
         with open(temp_file, "w", encoding="utf-8") as f:
             json.dump(db_data, f, indent=4, default=str)
-        f.flush()
-        os.fsync(f.fileno()) 
+            # CORREÇÃO: flush e fsync agora estão DENTRO do bloco with
+            f.flush()
+            os.fsync(f.fileno()) 
+        
+        # Agora que o arquivo fechou, podemos substituir
         os.replace(temp_file, DB_FILE)
     except Exception as e:
         st.error(f"Erro salvamento local: {e}")
@@ -273,7 +276,7 @@ def generate_tree_svg(branches):
     scale = min(max(branches, 1), 50) / 10.0
     if branches <= 0:
         return """
-        <svg width="300" height="300" viewBox="0 0 100 100" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
+        <svg width="300" height="300" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
             <rect x="40" y="80" width="20" height="20" fill="#5c4033" />
             <text x="50" y="70" font-size="5" text-anchor="middle" fill="#C2D5ED">A árvore secou...</text>
         </svg>
@@ -293,7 +296,7 @@ def generate_tree_svg(branches):
         leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}" opacity="0.9" />'
 
     return f"""
-    <svg width="350" height="350" viewBox="0 0 100 100" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
+    <svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
         <rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />
         {leaves_svg}
         <text x="50" y="95" font-size="4" text-anchor="middle" fill="#C2D5ED">Ramos Vivos: {branches}</text>
@@ -563,6 +566,7 @@ def main_app():
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             
             # --- RECADO DO MODERADOR (Individual) - Visão do Usuário ---
+            # Esta mensagem aparece aqui também para garantir que o usuário veja logo ao abrir a árvore
             if user_data.get('mod_message'):
                 st.markdown(f"""
                 <div class="private-message">
