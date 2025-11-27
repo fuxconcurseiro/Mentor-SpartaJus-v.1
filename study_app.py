@@ -21,6 +21,8 @@ except ImportError:
     SHEETS_AVAILABLE = False
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
+# Removido o 'expanded' forçado para deixar o usuário controlar, 
+# mas o padrão será tentar abrir.
 st.set_page_config(
     page_title="Mentor SpartaJus",
     page_icon="🏛️",
@@ -178,15 +180,18 @@ def ensure_users_exist():
 
 ensure_users_exist()
 
-# --- ESTILOS CSS ---
+# --- ESTILOS CSS (MODO DE RECUPERAÇÃO DE INTERFACE) ---
 st.markdown("""
     <style>
-    /* REMOVIDOS OS COMANDOS QUE OCULTAVAM O MENU/HEADER PARA RESTAURAR A SIDEBAR */
+    /* RESET DE VISIBILIDADE: Removemos regras que escondem headers para garantir acesso */
     
-    /* Estilos Gerais do App */
+    /* Fundo Geral */
     .stApp { background-color: #708090; color: #C2D5ED; }
-    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
     
+    /* Texto Geral */
+    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
+
+    /* Inputs */
     .stTextInput > div > div > input, 
     .stNumberInput > div > div > input, 
     .stDateInput > div > div > input,
@@ -197,13 +202,25 @@ st.markdown("""
     }
     ::placeholder { color: #a0b0c0 !important; opacity: 0.7; }
     
+    /* Títulos */
     h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
         color: #C2D5ED !important; font-family: 'Helvetica Neue', sans-serif; text-shadow: 1px 1px 2px black;
     }
     
-    [data-testid="stSidebar"] { background-color: #586878; border-right: 2px solid #C4A484; }
+    /* SIDEBAR (Estilo Reforçado) */
+    [data-testid="stSidebar"] { 
+        background-color: #586878; 
+        border-right: 2px solid #C4A484;
+    }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 { color: #C2D5ED !important; }
     
+    /* Botão de Controle da Sidebar (Chevron/X) */
+    /* Garantimos que ele seja visível e tenha cor contrastante */
+    [data-testid="stSidebarCollapsedControl"] {
+        color: #D4AF37 !important; /* Dourado */
+    }
+
+    /* Botões Gerais */
     .stButton>button {
         background-color: #4a5a6a; color: #C2D5ED; border: 1px solid #D4AF37; 
         border-radius: 4px; height: 3em; font-weight: bold; transition: all 0.3s;
@@ -212,6 +229,7 @@ st.markdown("""
         background-color: #D4AF37; color: #2c3e50; border-color: #C2D5ED;
     }
     
+    /* Cards */
     .metric-card { background-color: #586878; padding: 15px; border-radius: 8px; border: 1px solid #C4A484; }
     .metric-card h4, .metric-card p { color: #C2D5ED !important; }
     
@@ -231,6 +249,7 @@ st.markdown("""
         padding: 15px; margin-bottom: 20px; border-radius: 8px; color: #C2D5ED;
     }
 
+    /* Podium */
     .podium-gold { background: linear-gradient(180deg, #D4AF37 0%, #B8860B 100%); color: #000 !important; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid #FFD700; transform: scale(1.05); }
     .podium-silver { background: linear-gradient(180deg, #C0C0C0 0%, #A9A9A9 100%); color: #000 !important; padding: 15px; border-radius: 10px; text-align: center; border: 2px solid #D3D3D3; margin-top: 15px; }
     .podium-bronze { background: linear-gradient(180deg, #CD7F32 0%, #8B4513 100%); color: #fff !important; padding: 15px; border-radius: 10px; text-align: center; border: 2px solid #A0522D; margin-top: 25px; }
@@ -291,20 +310,17 @@ def generate_tree_svg(branches):
             <text x="50" y="70" font-size="5" text-anchor="middle" fill="#C2D5ED">A árvore secou...</text>
         </svg>
         """
-    
     leaves_svg = ""
     random.seed(42)
     trunk_h = min(30 + (branches * 0.5), 60)
     trunk_y = 100 - trunk_h
     count = min(max(1, branches), 150)
-    
     for i in range(count):
         cx = 50 + random.randint(-20 - int(branches/2), 20 + int(branches/2))
         cy = trunk_y + random.randint(-20 - int(branches/2), 10)
         r = random.randint(3, 6)
         color = "#047a0a" # Verde
         leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}" opacity="0.9" />'
-
     return f"""
     <svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
         <rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />
