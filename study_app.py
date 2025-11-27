@@ -10,6 +10,7 @@ import os
 import time
 import base64
 import shutil
+import calendar
 
 # Tenta importar bibliotecas do Google Sheets. Se falhar, roda em modo offline.
 try:
@@ -32,6 +33,17 @@ DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
 ADMIN_USER = "fux_concurseiro" 
 SHEET_NAME = "SpartaJus_DB" 
+
+# --- GERENCIAMENTO DE API KEY (IA) ---
+ENCRYPTED_KEY_LOCAL = "QUl6YVN5RFI1VTdHeHNCZVVVTFE5M1N3UG9VNl9CaGl3VHZzMU9n"
+
+def get_api_key():
+    if "GEMINI_API_KEY" in st.secrets:
+        return st.secrets["GEMINI_API_KEY"]
+    try:
+        return base64.b64decode(ENCRYPTED_KEY_LOCAL).decode("utf-8")
+    except Exception:
+        return ""
 
 # --- FUNÇÕES DE GOOGLE SHEETS (PERSISTÊNCIA NA NUVEM) ---
 
@@ -124,16 +136,13 @@ def load_db():
         return {}
 
 def save_db(db_data):
-    # 1. Salva Local (CORREÇÃO DE INDENTAÇÃO APLICADA AQUI)
+    # 1. Salva Local
     temp_file = f"{DB_FILE}.tmp"
     try:
         with open(temp_file, "w", encoding="utf-8") as f:
             json.dump(db_data, f, indent=4, default=str)
-            # CORREÇÃO: flush e fsync agora estão DENTRO do bloco with
             f.flush()
             os.fsync(f.fileno()) 
-        
-        # Agora que o arquivo fechou, podemos substituir
         os.replace(temp_file, DB_FILE)
     except Exception as e:
         st.error(f"Erro salvamento local: {e}")
@@ -158,6 +167,7 @@ def ensure_users_exist():
             db[user] = {
                 "password": default_pass,
                 "logs": [],
+                "agendas": {}, # NOVO CAMPO DE AGENDA
                 "tree_branches": 1,
                 "created_at": str(datetime.now()),
                 "mod_message": ""
@@ -241,6 +251,15 @@ st.markdown("""
     
     .stImage { display: flex; justify-content: center; }
     .stImage img { width: 100%; mix-blend-mode: multiply; border-radius: 10px; }
+    
+    /* CALENDÁRIO */
+    .cal-day {
+        background-color: #4a5a6a; border: 1px solid #586878; 
+        border-radius: 4px; padding: 10px; text-align: center; margin: 2px;
+        min-height: 60px; display: flex; flex-direction: column; justify-content: center;
+    }
+    .cal-day.planned { border: 2px solid #047a0a; background-color: #1b3a2b; }
+    .cal-day.empty { opacity: 0.5; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -384,6 +403,7 @@ def login_page():
                 db[new_user] = {
                     "password": new_pass,
                     "logs": [],
+                    "agendas": {},
                     "tree_branches": 1,
                     "created_at": str(datetime.now()),
                     "mod_message": ""
@@ -429,8 +449,12 @@ def main_app():
 
     # Garantir chaves básicas no JSON
     if 'logs' not in user_data: user_data['logs'] = []
+    if 'agendas' not in user_data: user_data['agendas'] = {} # Garante campo de agendas
     if 'tree_branches' not in user_data: user_data['tree_branches'] = 1
     if 'mod_message' not in user_data: user_data['mod_message'] = "" 
+    
+    # --- CONFIGURAR API KEY FIXA (Decodificando) ---
+    st.session_state.api_key = get_api_key()
     
     # --- CÁLCULOS TOTAIS ---
     total_questions = sum([log.get('questoes', 0) for log in user_data['logs']])
@@ -551,22 +575,21 @@ def main_app():
         </div>
         """, unsafe_allow_html=True)
 
-    # --- DEFINIÇÃO DE ABAS (Dinâmico) ---
-    if user == ADMIN_USER:
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor", "🛡️ Moderação"])
-    else:
-        tab1, tab2, tab3, tab4 = st.tabs(["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor"])
+    # --- DEFINIÇÃO DE ABAS ---
+    # Nova aba: Agenda
+    tab_names = ["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor", "📅 Agenda de Guerra"]
+    if user == ADMIN_USER: tab_names.append("🛡️ Moderação")
+    
+    current_tabs = st.tabs(tab_names)
 
-    # --- ABA 1: DIÁRIO ---
-    with tab1:
+    # ABA 1: DIÁRIO
+    with current_tabs[0]:
         col_tree, col_form = st.columns([1, 1])
 
         with col_tree:
             st.subheader("Árvore da Constância")
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             
-            # --- RECADO DO MODERADOR (Individual) - Visão do Usuário ---
-            # Esta mensagem aparece aqui também para garantir que o usuário veja logo ao abrir a árvore
             if user_data.get('mod_message'):
                 st.markdown(f"""
                 <div class="private-message">
@@ -637,8 +660,8 @@ def main_app():
                         save_current_user_data()
                         st.rerun()
 
-    # --- ABA 2: HISTÓRICO E DASHBOARD ---
-    with tab2:
+    # ABA 2: HISTÓRICO E DASHBOARD
+    with current_tabs[1]:
         st.header("📊 Inteligência de Dados")
         
         if len(user_data['logs']) > 0:
@@ -809,17 +832,11 @@ def main_app():
                     mat_str = row['materias_str']
                     mat_list = [m.strip() for m in mat_str.split(',')] if mat_str else []
                     
-                    # Conversão robusta
-                    try:
-                        p_val = int(row['paginas']) if pd.notnull(row['paginas']) else 0
+                    try: p_val = int(row['paginas']) if pd.notnull(row['paginas']) else 0
                     except: p_val = 0
-                    
-                    try:
-                        q_val = int(row['questoes']) if pd.notnull(row['questoes']) else 0
+                    try: q_val = int(row['questoes']) if pd.notnull(row['questoes']) else 0
                     except: q_val = 0
-                    
-                    try:
-                        s_val = int(row['series']) if pd.notnull(row['series']) else 0
+                    try: s_val = int(row['series']) if pd.notnull(row['series']) else 0
                     except: s_val = 0
 
                     entry = {
@@ -850,285 +867,230 @@ def main_app():
         else:
             st.warning("Nenhum registro encontrado.")
 
-    # --- ABA 3: RANKING GLOBAL (COMUNIDADE) ---
-    with tab3:
+    # ABA 3: RANKING GLOBAL
+    with current_tabs[2]:
         st.header("🏆 Hall da Fama Espartano")
-        st.caption("Classificação baseada no total de Questões.")
-        
         all_db = load_db()
         community_data = []
-        
         for u_name, u_data in all_db.items():
-            # IGNORAR A CHAVE DE ALERTAS GLOBAIS
-            if u_name == "global_alerts":
-                continue
-                
+            if u_name == "global_alerts": continue
             u_logs = u_data.get('logs', [])
             tot_q = sum(l.get('questoes', 0) for l in u_logs)
             tot_p = sum(l.get('paginas', 0) for l in u_logs)
             u_streak = calculate_streak(u_logs)
             patente = get_patent(tot_q)
-            
             total_min = 0
             for l in u_logs:
                 for m in l.get('materias', []):
-                    if '-' in m:
-                        total_min += parse_time_str_to_min(m.split('-', 1)[0])
-            total_hours = round(total_min / 60, 1)
-            
+                    if '-' in m: total_min += parse_time_str_to_min(m.split('-', 1)[0])
             community_data.append({
-                "Espartano": u_name,
-                "Patente": patente,
-                "Questões": tot_q,
-                "Páginas": tot_p,
-                "Fogo (Dias)": u_streak,
-                "Tempo Total (h)": total_hours
+                "Espartano": u_name, "Patente": patente, "Questões": tot_q,
+                "Páginas": tot_p, "Fogo (Dias)": u_streak, "Tempo Total (h)": round(total_min / 60, 1)
             })
             
         if community_data:
             df_comm = pd.DataFrame(community_data)
-            # Ordenar por Questões (Ranking)
             df_comm = df_comm.sort_values(by="Questões", ascending=False).reset_index(drop=True)
             df_comm.index += 1 
             df_comm.index.name = "Rank"
             
-            # --- PÓDIO ---
             top_users = df_comm.head(3)
             if not top_users.empty:
                 cols = st.columns([1, 1, 1])
-                
-                # Prata (2º Lugar) - Esquerda
                 if len(top_users) >= 2:
-                    with cols[0]:
-                        u2 = top_users.iloc[1]
-                        st.markdown(f"""
-                        <div class="podium-silver">
-                            <h2>🥈 2º Lugar</h2>
-                            <h3>{u2['Espartano']}</h3>
-                            <p>{u2['Questões']} Questões</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                
-                # Ouro (1º Lugar) - Centro
+                    with cols[0]: st.markdown(f"<div class='podium-silver'><h2>🥈</h2><h3>{top_users.iloc[1]['Espartano']}</h3><p>{top_users.iloc[1]['Questões']} Questões</p></div>", unsafe_allow_html=True)
                 if len(top_users) >= 1:
-                    with cols[1]:
-                        u1 = top_users.iloc[0]
-                        st.markdown(f"""
-                        <div class="podium-gold">
-                            <h1>🥇 1º Lugar</h1>
-                            <h2>{u1['Espartano']}</h2>
-                            <p><strong>{u1['Patente']}</strong></p>
-                            <p>{u1['Questões']} Questões</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                
-                # Bronze (3º Lugar) - Direita
+                    with cols[1]: st.markdown(f"<div class='podium-gold'><h1>🥇</h1><h2>{top_users.iloc[0]['Espartano']}</h2><p>{top_users.iloc[0]['Questões']} Questões</p></div>", unsafe_allow_html=True)
                 if len(top_users) >= 3:
-                    with cols[2]:
-                        u3 = top_users.iloc[2]
-                        st.markdown(f"""
-                        <div class="podium-bronze">
-                            <h2>🥉 3º Lugar</h2>
-                            <h3>{u3['Espartano']}</h3>
-                            <p>{u3['Questões']} Questões</p>
-                        </div>
-                        """, unsafe_allow_html=True)
+                    with cols[2]: st.markdown(f"<div class='podium-bronze'><h2>🥉</h2><h3>{top_users.iloc[2]['Espartano']}</h3><p>{top_users.iloc[2]['Questões']} Questões</p></div>", unsafe_allow_html=True)
             
             st.divider()
-            st.subheader("Classificação Geral")
-            
-            def highlight_self(row):
-                if row['Espartano'] == user:
-                    return ['background-color: #5C4033; color: white'] * len(row)
-                return [''] * len(row)
-
-            st.dataframe(
-                df_comm.style.apply(highlight_self, axis=1), 
-                use_container_width=True
-            )
+            st.dataframe(df_comm.style.apply(lambda x: ['background-color: #5C4033; color: white']*len(x) if x['Espartano']==user else ['']*len(x), axis=1), use_container_width=True)
         else:
             st.info("Nenhum dado comunitário disponível.")
 
-    # --- ABA 4: ALERTAS DO MENTOR (NOVA) ---
-    with tab4:
+    # ABA 4: ALERTAS DO MENTOR
+    with current_tabs[3]:
         st.header("📢 Alertas do Mentor")
-        
         db = load_db()
-        # Garantir que a lista de alertas existe
-        if "global_alerts" not in db:
-            db["global_alerts"] = []
-            
+        if "global_alerts" not in db: db["global_alerts"] = []
+        
         col_global, col_priv = st.columns([1, 1])
         
-        # === COLUNA 1: ALERTAS GLOBAIS ===
         with col_global:
             st.subheader("🌍 Mural de Avisos Globais")
-            
-            # --- ÁREA DE POSTAGEM (ADMIN) ---
             if user == ADMIN_USER:
                 with st.expander("📝 Escrever Novo Alerta Global", expanded=False):
                     with st.form("new_alert_form"):
                         new_alert_text = st.text_area("Mensagem para todos:", height=80)
-                        submit_alert = st.form_submit_button("📢 Publicar Aviso")
-                        
-                        if submit_alert and new_alert_text.strip():
-                            alert_obj = {
-                                "id": str(datetime.now().timestamp()),
-                                "date": datetime.now().strftime("%d/%m/%Y %H:%M"),
-                                "text": new_alert_text,
-                                "author": user
-                            }
+                        if st.form_submit_button("📢 Publicar Aviso") and new_alert_text.strip():
+                            alert_obj = {"id": str(datetime.now().timestamp()), "date": datetime.now().strftime("%d/%m/%Y %H:%M"), "text": new_alert_text, "author": user}
                             db["global_alerts"].insert(0, alert_obj)
                             save_db(db)
                             st.success("Publicado!")
                             st.rerun()
             
-            # --- LISTAGEM DE ALERTAS ---
             alerts = db.get("global_alerts", [])
-            if not alerts:
-                st.info("Nenhum alerta global.")
+            if not alerts: st.info("Nenhum alerta global.")
             else:
                 for alert in alerts:
-                    st.markdown(f"""
-                    <div class="mod-message" style="margin-bottom: 10px; padding: 10px;">
-                        <div style="font-size: 0.7em; color: #D4AF37;">📅 {alert.get('date')}</div>
-                        <div style="white-space: pre-wrap;">{alert.get('text')}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if user == ADMIN_USER:
-                        if st.button(f"🗑️ Apagar", key=f"del_{alert.get('id')}"):
-                            db["global_alerts"].remove(alert)
-                            save_db(db)
-                            st.rerun()
+                    st.markdown(f"<div class='mod-message' style='margin-bottom: 10px; padding: 10px;'><div style='font-size: 0.7em; color: #D4AF37;'>📅 {alert.get('date')}</div><div style='white-space: pre-wrap;'>{alert.get('text')}</div></div>", unsafe_allow_html=True)
+                    if user == ADMIN_USER and st.button(f"🗑️ Apagar", key=f"del_{alert.get('id')}"):
+                        db["global_alerts"].remove(alert)
+                        save_db(db)
+                        st.rerun()
 
-        # === COLUNA 2: MENSAGENS PRIVADAS ===
         with col_priv:
             st.subheader("📨 Mensagens Individuais")
-            
-            # --- ÁREA DE ENVIO (ADMIN) ---
-            # Adicionada ferramenta de reconstrução histórica aqui para facilitar
             if user == ADMIN_USER:
                 st.markdown("---")
-                st.markdown("**Reconstrução / Mensagens**")
-                
+                st.markdown("**Enviar Mensagem Privada**")
                 all_users = [k for k in db.keys() if k != "global_alerts" and k != ADMIN_USER]
-                target_msg_user = st.selectbox("Destinatário / Alvo:", all_users, key="msg_target")
+                target_msg_user = st.selectbox("Destinatário:", all_users, key="msg_target")
+                current_msg = db[target_msg_user].get('mod_message', '')
+                if current_msg: st.warning(f"⚠️ Este usuário já tem uma mensagem ativa: '{current_msg}'")
+                new_priv_msg = st.text_area("Mensagem Privada:", key="priv_txt")
+                if st.button("Enviar/Atualizar Mensagem"):
+                    db[target_msg_user]['mod_message'] = new_priv_msg
+                    save_db(db)
+                    st.success(f"Mensagem enviada para {target_msg_user}!")
+                    st.rerun()
                 
-                # --- ABA INTERNA: MENSAGEM ---
-                with st.expander("💬 Enviar Mensagem Privada", expanded=False):
-                    current_msg = db[target_msg_user].get('mod_message', '')
-                    if current_msg:
-                        st.warning(f"Atual: '{current_msg}'")
-                    
-                    new_priv_msg = st.text_area("Nova Mensagem:", key="priv_txt")
-                    if st.button("Enviar Msg"):
-                        db[target_msg_user]['mod_message'] = new_priv_msg
-                        save_db(db)
-                        st.success(f"Enviado para {target_msg_user}!")
-                        st.rerun()
-                
-                # --- ABA INTERNA: GERENCIAR MENSAGENS ATIVAS ---
-                with st.expander("📤 Gerenciar Mensagens Ativas", expanded=False):
-                    users_with_msg = [u for u in all_users if db[u].get('mod_message')]
-                    if not users_with_msg:
-                        st.caption("Nenhum usuário possui mensagens pendentes.")
-                    else:
-                        for u_msg in users_with_msg:
+                st.markdown("---")
+                st.markdown("**Gerenciar Mensagens Ativas**")
+                users_with_msg = [u for u in all_users if db[u].get('mod_message')]
+                if not users_with_msg: st.caption("Nenhum usuário possui mensagens pendentes.")
+                else:
+                    for u_msg in users_with_msg:
+                        with st.container():
                             st.markdown(f"**{u_msg}:** {db[u_msg]['mod_message']}")
                             if st.button(f"Apagar Msg de {u_msg}", key=f"del_msg_{u_msg}"):
                                 db[u_msg]['mod_message'] = ""
                                 save_db(db)
                                 st.rerun()
                             st.divider()
-
-                # --- ABA INTERNA: RECONSTRUÇÃO HISTÓRICA (RESGATE DE DADOS) ---
-                with st.expander("🔧 Reconstrução Histórica (Resgate)", expanded=False):
-                    st.warning("Use para adicionar registros retroativos perdidos.")
-                    with st.form("rebuild_data_form"):
-                        r_date = st.date_input("Data Antiga", value=date.today())
-                        r_pag = st.number_input("Páginas", min_value=0)
-                        r_que = st.number_input("Questões", min_value=0)
-                        r_ser = st.number_input("Séries", min_value=0)
-                        r_submit = st.form_submit_button("Adicionar ao Histórico do Usuário")
-                        
-                        if r_submit:
-                            new_entry = {
-                                "data": r_date.strftime("%Y-%m-%d"),
-                                "acordou": "00:00",
-                                "dormiu": "00:00",
-                                "paginas": r_pag,
-                                "questoes": r_que,
-                                "series": r_ser,
-                                "estudou": True,
-                                "materias": ["Recuperado pelo Admin"]
-                            }
-                            db[target_msg_user]['logs'].append(new_entry)
-                            # Recalcula árvore simples
-                            db[target_msg_user]['tree_branches'] += 1
-                            save_db(db)
-                            st.success(f"Dados adicionados para {target_msg_user}!")
-                            
-            # --- ÁREA DE VISUALIZAÇÃO (USUÁRIO COMUM) ---
             else:
                 my_msg = user_data.get('mod_message', '')
-                if my_msg:
-                    st.markdown(f"""
-                    <div class="private-message">
-                        <h3 style="color: #D4AF37; margin-top:0;">⚠️ MENSAGEM DO MENTOR</h3>
-                        <p style="font-size: 1.1em;">{my_msg}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.info("Você não tem mensagens privadas novas.")
+                if my_msg: st.markdown(f"<div class='private-message'><h3 style='color: #D4AF37; margin-top:0;'>⚠️ MENSAGEM DO MENTOR</h3><p style='font-size: 1.1em;'>{my_msg}</p></div>", unsafe_allow_html=True)
+                else: st.info("Você não tem mensagens privadas novas.")
 
-    # --- ABA 5: MODERAÇÃO (NOVA E EXCLUSIVA) ---
+    # ABA 5: AGENDA DE GUERRA (NOVA)
+    with current_tabs[4]:
+        st.header("📅 Agenda & Metas")
+        
+        c_plan, c_stats = st.columns([2, 1])
+        
+        with c_plan:
+            st.subheader("Plano de Batalha")
+            
+            # Seletor de Data (Default: Amanhã)
+            plan_date = st.date_input("Para qual dia você está planejando?", value=date.today() + timedelta(days=1))
+            plan_key = plan_date.strftime("%Y-%m-%d")
+            
+            # Carrega agenda existente se houver
+            current_plan = user_data['agendas'].get(plan_key, "")
+            
+            new_plan_text = st.text_area("Objetivos e Estratégia:", value=current_plan, height=200, placeholder="Ex: 1. Ler Cap. 4 de Constitucional\n2. Fazer 30 questões de Penal\n3. Revisar súmulas...")
+            
+            if st.button("💾 Salvar Planejamento"):
+                if new_plan_text.strip():
+                    user_data['agendas'][plan_key] = new_plan_text
+                    st.success(f"Agenda para {plan_date.strftime('%d/%m')} salva com honra!")
+                else:
+                    # Se apagar o texto, remove a entrada
+                    if plan_key in user_data['agendas']:
+                        del user_data['agendas'][plan_key]
+                        st.info("Planejamento removido.")
+                save_current_user_data()
+                st.rerun()
+
+        with c_stats:
+            st.subheader("Disciplina Mensal")
+            
+            # Lógica do Calendário Visual
+            today = date.today()
+            current_month = today.month
+            current_year = today.year
+            
+            # Dias do mês corrente
+            num_days = calendar.monthrange(current_year, current_month)[1]
+            days_planned = 0
+            
+            st.markdown(f"**{calendar.month_name[current_month]} {current_year}**")
+            
+            # Grid do Calendário (CSS Grid like via columns)
+            cols = st.columns(7)
+            days_abbrev = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
+            for i, d_name in enumerate(days_abbrev):
+                cols[i].markdown(f"<div style='text-align:center; font-size:0.8em; color:#a0b0c0;'>{d_name}</div>", unsafe_allow_html=True)
+            
+            # Preenchimento dos dias
+            month_start_weekday = date(current_year, current_month, 1).weekday()
+            
+            # Espaços vazios antes do dia 1
+            cal_html_grid = []
+            for _ in range(month_start_weekday):
+                cal_html_grid.append(f"<div class='cal-day empty'></div>")
+            
+            for d in range(1, num_days + 1):
+                d_str = date(current_year, current_month, d).strftime("%Y-%m-%d")
+                has_plan = d_str in user_data['agendas'] and user_data['agendas'][d_str].strip() != ""
+                
+                if has_plan:
+                    days_planned += 1
+                    style_class = "cal-day planned"
+                    icon = "✅"
+                else:
+                    style_class = "cal-day"
+                    icon = ""
+                
+                cal_html_grid.append(f"<div class='{style_class}'>{d}<br>{icon}</div>")
+            
+            # Renderizar grid (7 colunas)
+            for i in range(0, len(cal_html_grid), 7):
+                row_cols = st.columns(7)
+                for j in range(7):
+                    if i + j < len(cal_html_grid):
+                        row_cols[j].markdown(cal_html_grid[i+j], unsafe_allow_html=True)
+            
+            st.divider()
+            # Métricas
+            st.metric("Dias Planejados", f"{days_planned} / {num_days}")
+            if days_planned == 0:
+                st.warning("Ainda sem planos este mês. Comece agora!")
+            elif days_planned == num_days:
+                st.balloons()
+                st.success("Disciplina Perfeita! Um verdadeiro Espartano!")
+
+    # ABA ADMIN (Moderação)
     if user == ADMIN_USER:
-        with tab5:
+        with current_tabs[5]:
             st.header("🛡️ Central de Comando - Moderação")
             st.markdown("---")
-            
             col_add, col_del = st.columns(2)
-            
-            # --- INCLUIR USUÁRIO ---
             with col_add:
                 st.subheader("✨ Incluir Novo Espartano")
                 with st.form("create_user_form"):
                     new_u = st.text_input("Nome do Usuário")
                     new_p = st.text_input("Senha", type="password")
-                    submit_create = st.form_submit_button("Criar Conta")
-                    
-                    if submit_create:
+                    if st.form_submit_button("Criar Conta"):
                         db = load_db()
                         if new_u and new_p:
                             if new_u not in db:
-                                db[new_u] = {
-                                    "password": new_p,
-                                    "logs": [],
-                                    "tree_branches": 1,
-                                    "created_at": str(datetime.now()),
-                                    "mod_message": ""
-                                }
+                                db[new_u] = {"password": new_p, "logs": [], "agendas": {}, "tree_branches": 1, "created_at": str(datetime.now()), "mod_message": ""}
                                 save_db(db)
                                 st.success(f"Usuário '{new_u}' recrutado com sucesso!")
                                 time.sleep(1)
                                 st.rerun()
-                            else:
-                                st.error("Este nome de usuário já existe.")
-                        else:
-                            st.warning("Preencha nome e senha.")
-
-            # --- EXCLUIR USUÁRIO ---
+                            else: st.error("Este nome de usuário já existe.")
+                        else: st.warning("Preencha nome e senha.")
             with col_del:
                 st.subheader("💀 Excluir Espartano")
                 db = load_db()
-                # Filter users, excluding admin and global_alerts
                 users_list = [u for u in db.keys() if u != "global_alerts" and u != ADMIN_USER]
-                
                 if users_list:
                     target_del = st.selectbox("Selecione o usuário para banir:", users_list)
                     st.warning(f"Atenção: A exclusão de **{target_del}** é irreversível.")
-                    
                     if st.button("Confirmar Exclusão 🗑️"):
                         if target_del in db:
                             del db[target_del]
@@ -1136,8 +1098,26 @@ def main_app():
                             st.success(f"Usuário '{target_del}' foi banido de Esparta.")
                             time.sleep(1)
                             st.rerun()
-                else:
-                    st.info("Não há outros usuários para excluir.")
+                else: st.info("Não há outros usuários para excluir.")
+            st.divider()
+            st.markdown("### 🔧 Reconstrução Histórica (Resgate)")
+            st.warning("Use para adicionar registros retroativos perdidos para qualquer usuário.")
+            db_rec = load_db()
+            all_users_rec = [k for k in db_rec.keys() if k != "global_alerts" and k != ADMIN_USER]
+            if all_users_rec:
+                target_rec_user = st.selectbox("Usuário Alvo:", all_users_rec, key="rec_target")
+                with st.form("rebuild_data_form_mod"):
+                    r_date = st.date_input("Data Antiga", value=date.today())
+                    c1, c2, c3 = st.columns(3)
+                    with c1: r_pag = st.number_input("Páginas", min_value=0)
+                    with c2: r_que = st.number_input("Questões", min_value=0)
+                    with c3: r_ser = st.number_input("Séries", min_value=0)
+                    if st.form_submit_button("Adicionar ao Histórico"):
+                        new_entry = {"data": r_date.strftime("%Y-%m-%d"), "acordou": "00:00", "dormiu": "00:00", "paginas": r_pag, "questoes": r_que, "series": r_ser, "estudou": True, "materias": ["Recuperado pelo Admin"]}
+                        db_rec[target_rec_user]['logs'].append(new_entry)
+                        db_rec[target_rec_user]['tree_branches'] += 1
+                        save_db(db_rec)
+                        st.success(f"Dados adicionados para {target_rec_user}!")
 
 # --- CONTROLE DE FLUXO LOGIN ---
 if 'user' not in st.session_state:
