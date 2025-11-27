@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, time as dt_time, timedelta
 import re
 import random
 import json
@@ -21,8 +21,6 @@ except ImportError:
     SHEETS_AVAILABLE = False
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-# Removido o 'expanded' forçado para deixar o usuário controlar, 
-# mas o padrão será tentar abrir.
 st.set_page_config(
     page_title="Mentor SpartaJus",
     page_icon="🏛️",
@@ -35,6 +33,9 @@ DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
 ADMIN_USER = "fux_concurseiro" 
 SHEET_NAME = "SpartaJus_DB" 
+
+# --- GERENCIAMENTO DE API KEY (IA) ---
+# (Removido pois não usamos mais IA)
 
 # --- FUNÇÕES DE GOOGLE SHEETS (PERSISTÊNCIA NA NUVEM) ---
 
@@ -172,15 +173,32 @@ ensure_users_exist()
 # --- ESTILOS CSS ---
 st.markdown("""
     <style>
-    /* RESET DE VISIBILIDADE: Removemos regras que escondem headers para garantir acesso */
+    /* RESET DE VISIBILIDADE */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    [data-testid="stDecoration"] {visibility: hidden;}
+    [data-testid="stToolbar"] {visibility: hidden;}
     
-    /* Fundo Geral */
-    .stApp { background-color: #708090; color: #C2D5ED; }
-    
-    /* Texto Geral */
-    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
+    /* HEADER Transparente */
+    [data-testid="stHeader"] {
+        background-color: rgba(0,0,0,0);
+        visibility: visible;
+    }
 
-    /* Inputs */
+    /* BOTÃO DA SIDEBAR */
+    [data-testid="stSidebarCollapsedControl"] {
+        visibility: visible !important;
+        display: block !important;
+        color: #D4AF37 !important;
+        background-color: rgba(74, 90, 106, 0.3);
+        border-radius: 5px;
+        z-index: 100000;
+    }
+    
+    /* Estilos Gerais */
+    .stApp { background-color: #708090; color: #C2D5ED; }
+    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
+    
     .stTextInput > div > div > input, 
     .stNumberInput > div > div > input, 
     .stDateInput > div > div > input,
@@ -191,28 +209,13 @@ st.markdown("""
     }
     ::placeholder { color: #a0b0c0 !important; opacity: 0.7; }
     
-    /* Títulos */
     h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
         color: #C2D5ED !important; font-family: 'Helvetica Neue', sans-serif; text-shadow: 1px 1px 2px black;
     }
     
-    /* SIDEBAR (Estilo Reforçado) */
-    [data-testid="stSidebar"] { 
-        background-color: #586878; 
-        border-right: 2px solid #C4A484;
-    }
+    [data-testid="stSidebar"] { background-color: #586878; border-right: 2px solid #C4A484; }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 { color: #C2D5ED !important; }
     
-    /* Botão de Controle da Sidebar (Chevron/X) */
-    /* Garantimos que ele seja visível e tenha cor contrastante */
-    [data-testid="stSidebarCollapsedControl"] {
-        color: #D4AF37 !important; /* Dourado */
-        background-color: rgba(74, 90, 106, 0.3); /* Fundo sutil para garantir contraste */
-        border-radius: 5px;
-        z-index: 100000; /* Garante que fique acima de tudo */
-    }
-    
-    /* Botões Gerais */
     .stButton>button {
         background-color: #4a5a6a; color: #C2D5ED; border: 1px solid #D4AF37; 
         border-radius: 4px; height: 3em; font-weight: bold; transition: all 0.3s;
@@ -221,7 +224,6 @@ st.markdown("""
         background-color: #D4AF37; color: #2c3e50; border-color: #C2D5ED;
     }
     
-    /* Cards */
     .metric-card { background-color: #586878; padding: 15px; border-radius: 8px; border: 1px solid #C4A484; }
     .metric-card h4, .metric-card p { color: #C2D5ED !important; }
     
@@ -302,20 +304,17 @@ def generate_tree_svg(branches):
             <text x="50" y="70" font-size="5" text-anchor="middle" fill="#C2D5ED">A árvore secou...</text>
         </svg>
         """
-    
     leaves_svg = ""
     random.seed(42)
     trunk_h = min(30 + (branches * 0.5), 60)
     trunk_y = 100 - trunk_h
     count = min(max(1, branches), 150)
-    
     for i in range(count):
         cx = 50 + random.randint(-20 - int(branches/2), 20 + int(branches/2))
         cy = trunk_y + random.randint(-20 - int(branches/2), 10)
         r = random.randint(3, 6)
         color = "#047a0a" # Verde
         leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}" opacity="0.9" />'
-
     return f"""
     <svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
         <rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />
@@ -349,6 +348,22 @@ def calculate_streak(logs):
             current_check -= timedelta(days=1)
         elif d_obj < current_check: break
     return streak
+
+# --- AUXILIAR: PARSE DE HORA HH:MM ---
+def parse_time_str_to_obj(t_str):
+    """Converte string 'HH:MM' para objeto datetime.time"""
+    try:
+        # Remove espaços e tenta limpar
+        t_str = t_str.strip()
+        # Formatos possiveis
+        for fmt in ("%H:%M", "%Hh%M", "%H:%M:%S"):
+            try:
+                return datetime.strptime(t_str, fmt).time()
+            except ValueError:
+                continue
+    except:
+        pass
+    return None
 
 # --- AUTH SYSTEM ---
 def login_page():
@@ -418,7 +433,6 @@ def main_app():
     if 'tree_branches' not in user_data: user_data['tree_branches'] = 1
     if 'mod_message' not in user_data: user_data['mod_message'] = "" 
 
-    
     total_questions = sum([log.get('questoes', 0) for log in user_data['logs']])
     total_pages = sum([log.get('paginas', 0) for log in user_data['logs']])
     streak = calculate_streak(user_data['logs'])
@@ -485,11 +499,12 @@ def main_app():
         star_html = "".join(["🟡"]*g_stars + ["⚪"]*s_stars + ["🟤"]*b_stars) or "<span style='color:#a0b0c0'>Sem estrelas</span>"
         st.markdown(f"<div class='metric-card'><h4>⭐ Estrelas de Leitura</h4><div class='star-container'>{star_html}</div><p style='font-size: 0.8em; margin-top: 5px;'>Total Páginas: {total_pages}</p></div>", unsafe_allow_html=True)
 
-    tabs = ["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor", "📅 Agenda de Guerra"]
-    if user == ADMIN_USER: tabs.append("🛡️ Moderação")
-    current_tabs = st.tabs(tabs)
+    # DEFINIÇÃO DE ABAS
+    tab_names = ["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor", "📅 Agenda de Guerra", "🦁 Comportamento"]
+    if user == ADMIN_USER: tab_names.append("🛡️ Moderação")
+    current_tabs = st.tabs(tab_names)
 
-    # ABA 1
+    # ABA 1: DIÁRIO
     with current_tabs[0]:
         col_tree, col_form = st.columns([1, 1])
         with col_tree:
@@ -515,7 +530,7 @@ def main_app():
                 if st.form_submit_button("💾 Salvar"):
                     clean_subs = [f"{r['Tempo']} - {r['Matéria']}" for _, r in sub_df.iterrows() if r["Matéria"]]
                     is_study = (pg > 0) or (qs > 0) or (len(clean_subs) > 0)
-                    d_str = d_log.strftime("%Y-%m-%d")
+                    d_str = date_log.strftime("%Y-%m-%d")
                     if d_str in [l['data'] for l in user_data['logs']]:
                         st.warning("Data já registrada. Edite no Histórico.")
                     else:
@@ -529,7 +544,7 @@ def main_app():
                         save_current_user_data()
                         st.rerun()
 
-    # ABA 2
+    # ABA 2: HISTÓRICO E DASHBOARD
     with current_tabs[1]:
         st.header("📊 Inteligência de Dados")
         if len(user_data['logs']) > 0:
@@ -553,7 +568,7 @@ def main_app():
                 m2.metric("Páginas", df_f['paginas'].sum())
                 m3.metric("Séries", df_f['series'].sum())
                 
-                st.subheader("Tempo por Matéria")
+                st.subheader("Gráfico de Tempo por Matéria")
                 sub_mins = {}
                 for _, r in df_f.iterrows():
                     if 'materias' in r and isinstance(r['materias'], list):
@@ -563,7 +578,7 @@ def main_app():
                                 sub_mins[p[1].strip()] = sub_mins.get(p[1].strip(), 0) + parse_time_str_to_min(p[0].strip())
                 
                 if sub_mins:
-                    fig, ax = plt.subplots(figsize=(6, 3))
+                    fig, ax = plt.subplots(figsize=(4, 4))
                     fig.patch.set_facecolor('white')
                     ax.set_facecolor('white')
                     colors = ['#FF0033', '#00FF33', '#3366FF', '#FF33FF', '#FFFF33', '#00FFFF', '#FF9933', '#9933FF']
@@ -800,9 +815,71 @@ def main_app():
                 st.balloons()
                 st.success("Disciplina Perfeita! Um verdadeiro Espartano!")
 
-    # ABA 6
+    # ABA 6: COMPORTAMENTO DO ESPARTANO (NOVA)
+    with current_tabs[5]:
+        st.header("🦁 Comportamento do Espartano")
+        st.caption("Análise de hábitos por mês.")
+        
+        if len(user_data['logs']) > 0:
+            df_beh = pd.DataFrame(user_data['logs'])
+            # Converter data
+            if 'data' in df_beh.columns:
+                df_beh['dt'] = pd.to_datetime(df_beh['data'])
+                df_beh['month_year'] = df_beh['dt'].dt.strftime('%m/%Y')
+            
+            # Seletor de Mês
+            available_months = sorted(df_beh['month_year'].unique(), reverse=True)
+            selected_month = st.selectbox("Selecione o Mês:", available_months)
+            
+            # Filtrar
+            df_m = df_beh[df_beh['month_year'] == selected_month]
+            
+            # Calcular Indicadores
+            count_wake = 0
+            count_sleep = 0
+            count_train = 0
+            count_read = 0
+            
+            for idx, row in df_m.iterrows():
+                # Acordou cedo (< 06:00)
+                t_wake = parse_time_str_to_obj(str(row.get('acordou', '')))
+                if t_wake and t_wake < dt_time(6, 0):
+                    count_wake += 1
+                    
+                # Dormiu cedo (18:00 - 21:59)
+                t_sleep = parse_time_str_to_obj(str(row.get('dormiu', '')))
+                if t_sleep:
+                    # Considera "cedo" se for maior que 18h e menor que 22h
+                    if t_sleep >= dt_time(18, 0) and t_sleep < dt_time(22, 0):
+                        count_sleep += 1
+                        
+                # Treino (Series > 0)
+                if int(row.get('series', 0)) > 0:
+                    count_train += 1
+                    
+                # Leitura (Paginas > 0)
+                if int(row.get('paginas', 0)) > 0:
+                    count_read += 1
+            
+            # Exibição
+            st.markdown(f"### Resultados de {selected_month}")
+            
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("🌅 Acordou Cedo", f"{count_wake} dias")
+            c2.metric("🌙 Dormiu Cedo", f"{count_sleep} dias")
+            c3.metric("💪 Treinou", f"{count_train} dias")
+            c4.metric("📚 Leu", f"{count_read} dias")
+            
+            # Detalhes visuais extras
+            if count_wake >= 20: st.success("Excelente disciplina matinal!")
+            if count_train >= 20: st.success("Corpo de aço em construção!")
+            
+        else:
+            st.info("Nenhum registro encontrado para análise comportamental.")
+
+    # ABA 7 (Moderação)
     if user == ADMIN_USER:
-        with current_tabs[5]:
+        with current_tabs[6]:
             st.header("🛡️ Moderação")
             ca, cd = st.columns(2)
             with ca:
@@ -830,7 +907,8 @@ def main_app():
                         st.success("Banido!")
                         time.sleep(1)
                         st.rerun()
-                else: st.info("Não há outros usuários para excluir.")
+                else:
+                    st.info("Não há outros usuários para excluir.")
 
 # --- EXECUÇÃO ---
 if 'user' not in st.session_state:
