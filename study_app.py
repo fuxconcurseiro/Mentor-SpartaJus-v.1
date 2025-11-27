@@ -21,6 +21,8 @@ except ImportError:
     SHEETS_AVAILABLE = False
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
+# Removido o 'expanded' forçado para deixar o usuário controlar, 
+# mas o padrão será tentar abrir.
 st.set_page_config(
     page_title="Mentor SpartaJus",
     page_icon="🏛️",
@@ -33,17 +35,6 @@ DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
 ADMIN_USER = "fux_concurseiro" 
 SHEET_NAME = "SpartaJus_DB" 
-
-# --- GERENCIAMENTO DE API KEY (IA) ---
-ENCRYPTED_KEY_LOCAL = "QUl6YVN5RFI1VTdHeHNCZVVVTFE5M1N3UG9VNl9CaGl3VHZzMU9n"
-
-def get_api_key():
-    if "GEMINI_API_KEY" in st.secrets:
-        return st.secrets["GEMINI_API_KEY"]
-    try:
-        return base64.b64decode(ENCRYPTED_KEY_LOCAL).decode("utf-8")
-    except Exception:
-        return ""
 
 # --- FUNÇÕES DE GOOGLE SHEETS (PERSISTÊNCIA NA NUVEM) ---
 
@@ -181,34 +172,15 @@ ensure_users_exist()
 # --- ESTILOS CSS ---
 st.markdown("""
     <style>
-    /* Elementos que queremos esconder totalmente */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    [data-testid="stDecoration"] {visibility: hidden;}
+    /* RESET DE VISIBILIDADE: Removemos regras que escondem headers para garantir acesso */
     
-    /* Barra de ferramentas (menu de 3 pontos) - Opcional: comente se quiser ver */
-    [data-testid="stToolbar"] {visibility: hidden;}
-    
-    /* HEADER: Deixamos transparente para nao bloquear a visao, mas VISIVEL para que os botoes funcionem */
-    [data-testid="stHeader"] {
-        background-color: rgba(0,0,0,0);
-        visibility: visible;
-    }
-
-    /* BOTÃO DA SIDEBAR (CHEVRON): Forçamos a visibilidade e estilizamos */
-    [data-testid="stSidebarCollapsedControl"] {
-        visibility: visible !important;
-        display: block !important;
-        color: #D4AF37 !important; /* Dourado */
-        background-color: rgba(74, 90, 106, 0.3); /* Fundo sutil para garantir contraste */
-        border-radius: 5px;
-        z-index: 100000; /* Garante que fique acima de tudo */
-    }
-    
-    /* Estilos Gerais do App */
+    /* Fundo Geral */
     .stApp { background-color: #708090; color: #C2D5ED; }
-    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
     
+    /* Texto Geral */
+    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
+
+    /* Inputs */
     .stTextInput > div > div > input, 
     .stNumberInput > div > div > input, 
     .stDateInput > div > div > input,
@@ -219,13 +191,28 @@ st.markdown("""
     }
     ::placeholder { color: #a0b0c0 !important; opacity: 0.7; }
     
+    /* Títulos */
     h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
         color: #C2D5ED !important; font-family: 'Helvetica Neue', sans-serif; text-shadow: 1px 1px 2px black;
     }
     
-    [data-testid="stSidebar"] { background-color: #586878; border-right: 2px solid #C4A484; }
+    /* SIDEBAR (Estilo Reforçado) */
+    [data-testid="stSidebar"] { 
+        background-color: #586878; 
+        border-right: 2px solid #C4A484;
+    }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 { color: #C2D5ED !important; }
     
+    /* Botão de Controle da Sidebar (Chevron/X) */
+    /* Garantimos que ele seja visível e tenha cor contrastante */
+    [data-testid="stSidebarCollapsedControl"] {
+        color: #D4AF37 !important; /* Dourado */
+        background-color: rgba(74, 90, 106, 0.3); /* Fundo sutil para garantir contraste */
+        border-radius: 5px;
+        z-index: 100000; /* Garante que fique acima de tudo */
+    }
+    
+    /* Botões Gerais */
     .stButton>button {
         background-color: #4a5a6a; color: #C2D5ED; border: 1px solid #D4AF37; 
         border-radius: 4px; height: 3em; font-weight: bold; transition: all 0.3s;
@@ -234,6 +221,7 @@ st.markdown("""
         background-color: #D4AF37; color: #2c3e50; border-color: #C2D5ED;
     }
     
+    /* Cards */
     .metric-card { background-color: #586878; padding: 15px; border-radius: 8px; border: 1px solid #C4A484; }
     .metric-card h4, .metric-card p { color: #C2D5ED !important; }
     
@@ -362,33 +350,6 @@ def calculate_streak(logs):
         elif d_obj < current_check: break
     return streak
 
-# --- PROMPT DO SISTEMA (ORÁCULO) ---
-ORACLE_SYSTEM_PROMPT = """
-Responda como um especialista em concursos públicos jurídicos na área do direito, principalmente ministério público, magistratura e procuradorias de estado e capitais municipais, considere também uma vasta experiência como membro presidente de diversas bancas examinadoras ao longo de 15 anos, aprovado em diversos concursos de carreira, especialista em responder provas discursivas com objetividade e assertividade.
-Portanto, todas as respostas devem trazer um conceito objetivo, acompanhado de um raciocínio objetivo que o sustenta, além de um exemplo prático, onde até uma criança de 7 anos possa visualizar e entender o texto, proporcionando um aprendizado acelerado.
-Para tanto a linguagem da escrita deve ser clara, coesa, simples e assertiva.
-Além disso, após cada pergunta, questione outros pontos a serem explorados e que derivam do assunto tratado de forma estratégica e associativa, para que o assunto possa ser aprofundado se assim o usuário desejar.
-
-Por fim, use estas regras exatamente como estão em todas as respostas.
-Não reinterprete.
-• Do not invent or assume facts.
-• If unconfirmed, say:
-- "I cannot verify this."
-- "I do not have access to that information."
-• Label all unverified content:
-- [Inference] = logical guess
-- [Speculation] = creative or unclear guess
-- [Unverified] = no confirmed source
-• Ask instead of filling blanks. Do not change input.
-• If any part is unverified, label the full response.
-• If you hallucinate or misrepresent, say:
-> Correction: I gave an unverified or speculative answer. It should have been labeled.
-• Do not use the following unless quoting or citing:
-- Prevent, Guarantee, Will never, Fixes, Eliminates, Ensures that
-• For behavior claims, include:
-- [Unverified] or [Inferencel and a note that this is expected behavior, not guaranteed
-"""
-
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
@@ -457,7 +418,6 @@ def main_app():
     if 'tree_branches' not in user_data: user_data['tree_branches'] = 1
     if 'mod_message' not in user_data: user_data['mod_message'] = "" 
 
-    st.session_state.api_key = get_api_key()
     
     total_questions = sum([log.get('questoes', 0) for log in user_data['logs']])
     total_pages = sum([log.get('paginas', 0) for log in user_data['logs']])
@@ -525,7 +485,7 @@ def main_app():
         star_html = "".join(["🟡"]*g_stars + ["⚪"]*s_stars + ["🟤"]*b_stars) or "<span style='color:#a0b0c0'>Sem estrelas</span>"
         st.markdown(f"<div class='metric-card'><h4>⭐ Estrelas de Leitura</h4><div class='star-container'>{star_html}</div><p style='font-size: 0.8em; margin-top: 5px;'>Total Páginas: {total_pages}</p></div>", unsafe_allow_html=True)
 
-    tabs = ["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor", "📅 Agenda de Guerra", "🤖 Oráculo IA"]
+    tabs = ["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor", "📅 Agenda de Guerra"]
     if user == ADMIN_USER: tabs.append("🛡️ Moderação")
     current_tabs = st.tabs(tabs)
 
@@ -603,7 +563,7 @@ def main_app():
                                 sub_mins[p[1].strip()] = sub_mins.get(p[1].strip(), 0) + parse_time_str_to_min(p[0].strip())
                 
                 if sub_mins:
-                    fig, ax = plt.subplots(figsize=(4, 4))
+                    fig, ax = plt.subplots(figsize=(6, 3))
                     fig.patch.set_facecolor('white')
                     ax.set_facecolor('white')
                     colors = ['#FF0033', '#00FF33', '#3366FF', '#FF33FF', '#FFFF33', '#00FFFF', '#FF9933', '#9933FF']
@@ -840,39 +800,9 @@ def main_app():
                 st.balloons()
                 st.success("Disciplina Perfeita! Um verdadeiro Espartano!")
 
-    # ABA 6 (Oráculo)
-    with current_tabs[5]:
-        st.subheader("🤖 Oráculo SpartaJus")
-        if not st.session_state.api_key: st.warning("Chave API não configurada.")
-        else:
-            if 'chat_history' not in st.session_state: st.session_state.chat_history = []
-            for m in st.session_state.chat_history:
-                with st.chat_message(m["role"]): st.write(m["content"])
-            
-            if p := st.chat_input("Consulte o Oráculo..."):
-                st.session_state.chat_history.append({"role": "user", "content": p})
-                with st.chat_message("user"): st.write(p)
-                with st.chat_message("assistant"):
-                    with st.spinner("Pensando..."):
-                        try:
-                            genai.configure(api_key=st.session_state.api_key)
-                            try:
-                                model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=ORACLE_SYSTEM_PROMPT)
-                                res = model.generate_content(p)
-                            except:
-                                model = genai.GenerativeModel('gemini-pro', system_instruction=ORACLE_SYSTEM_PROMPT)
-                                res = model.generate_content(p)
-                            
-                            r_text = remove_markdown(res.text)
-                            st.write(r_text)
-                            st.session_state.chat_history.append({"role": "assistant", "content": r_text})
-                        except Exception as e:
-                            if "429" in str(e): st.warning("Muitas requisições. Tente em breve.")
-                            else: st.error(f"Erro: {e}")
-
-    # ABA 7 (Moderação)
+    # ABA 6
     if user == ADMIN_USER:
-        with current_tabs[6]:
+        with current_tabs[5]:
             st.header("🛡️ Moderação")
             ca, cd = st.columns(2)
             with ca:
@@ -900,6 +830,7 @@ def main_app():
                         st.success("Banido!")
                         time.sleep(1)
                         st.rerun()
+                else: st.info("Não há outros usuários para excluir.")
 
 # --- EXECUÇÃO ---
 if 'user' not in st.session_state:
