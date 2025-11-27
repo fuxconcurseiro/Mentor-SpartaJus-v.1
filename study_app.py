@@ -36,6 +36,17 @@ LOGO_FILE = "logo_spartajus.jpg"
 ADMIN_USER = "fux_concurseiro" 
 SHEET_NAME = "SpartaJus_DB" 
 
+# --- GERENCIAMENTO DE API KEY (IA) ---
+ENCRYPTED_KEY_LOCAL = "QUl6YVN5RFI1VTdHeHNCZVVVTFE5M1N3UG9VNl9CaGl3VHZzMU9n"
+
+def get_api_key():
+    if "GEMINI_API_KEY" in st.secrets:
+        return st.secrets["GEMINI_API_KEY"]
+    try:
+        return base64.b64decode(ENCRYPTED_KEY_LOCAL).decode("utf-8")
+    except Exception:
+        return ""
+
 # --- FUNÇÕES DE GOOGLE SHEETS (PERSISTÊNCIA NA NUVEM) ---
 
 def get_google_credentials():
@@ -315,17 +326,20 @@ def generate_tree_svg(branches):
             <text x="50" y="70" font-size="5" text-anchor="middle" fill="#C2D5ED">A árvore secou...</text>
         </svg>
         """
+    
     leaves_svg = ""
     random.seed(42)
     trunk_h = min(30 + (branches * 0.5), 60)
     trunk_y = 100 - trunk_h
     count = min(max(1, branches), 150)
+    
     for i in range(count):
         cx = 50 + random.randint(-20 - int(branches/2), 20 + int(branches/2))
         cy = trunk_y + random.randint(-20 - int(branches/2), 10)
         r = random.randint(3, 6)
         color = "#047a0a" # Verde
         leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}" opacity="0.9" />'
+
     return f"""
     <svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
         <rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />
@@ -463,6 +477,21 @@ def main_app():
                         st.rerun()
         st.divider()
         st.header(f"Olá, {user}")
+
+        # INSERÇÃO DAS PATENTES NA BARRA LATERAL (SOLICITADA)
+        st.markdown("""
+        <div style='background-color: rgba(74, 90, 106, 0.3); padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #C4A484;'>
+            <strong style='color: #D4AF37;'>🎖️ PATENTES DO SPARTAJUS:</strong><br>
+            <span style='font-size: 0.85em;'>
+            * Andarilho de Vade Mecum (até 5k)<br>
+            ** Saco de Pancada da Banca (5k-10k)<br>
+            *** Cadastro de Reserva (10k-15k)<br>
+            **** Titã na Nota de Corte (15k-20k)<br>
+            ***** Espartano Jurídico (20k-25k)
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+        
         if st.button("Sair / Logout"):
             del st.session_state['user']
             del st.session_state['user_data']
@@ -589,7 +618,6 @@ def main_app():
                 st.subheader("📈 Evolução de Questões")
                 df_l = df_f.sort_values(by='data_obj')
                 if not df_l.empty:
-                    # FIGSIZE REDUZIDO: de (6, 2) para (5, 1.5)
                     fig_l, ax_l = plt.subplots(figsize=(5, 1.5))
                     fig_l.patch.set_facecolor('white')
                     ax_l.set_facecolor('white')
@@ -599,11 +627,8 @@ def main_app():
                     ax_l.tick_params(colors='#333333', rotation=45, labelsize=8)
                     for spine in ax_l.spines.values(): spine.set_edgecolor('#333333')
                     ax_l.grid(color='#333333', linestyle=':', alpha=0.2)
-                    
-                    # COLUNAS PARA RESTRINGIR LARGURA VISUAL
                     cl1, cl2, cl3 = st.columns([1, 4, 1])
-                    with cl2:
-                        st.pyplot(fig_l)
+                    with cl2: st.pyplot(fig_l)
             else: st.warning("Sem dados para o período.")
             
             st.divider()
@@ -697,12 +722,10 @@ def main_app():
             df_comm.index += 1 
             df_comm.index.name = "Rank"
             
-            # --- PÓDIO ---
             top_users = df_comm.head(3)
             if not top_users.empty:
                 cols = st.columns([1, 1, 1])
                 
-                # Prata (2º Lugar) - Esquerda
                 if len(top_users) >= 2:
                     with cols[0]:
                         u2 = top_users.iloc[1]
@@ -714,7 +737,6 @@ def main_app():
                         </div>
                         """, unsafe_allow_html=True)
                 
-                # Ouro (1º Lugar) - Centro
                 if len(top_users) >= 1:
                     with cols[1]:
                         u1 = top_users.iloc[0]
@@ -727,7 +749,6 @@ def main_app():
                         </div>
                         """, unsafe_allow_html=True)
                 
-                # Bronze (3º Lugar) - Direita
                 if len(top_users) >= 3:
                     with cols[2]:
                         u3 = top_users.iloc[2]
@@ -941,8 +962,6 @@ def main_app():
                 t_sleep = parse_time_str_to_obj(str(row.get('dormiu', '')))
                 if t_sleep:
                     # Considera cedo entre 18h e 22h (exclusivo 22h, ou seja < 22:00:00)
-                    # Ajuste fino: se for 22:00 exato, não conta. Se for 21:59 conta.
-                    # O pedido foi "antes das 22:00".
                     if t_sleep >= datetime.strptime("18:00", "%H:%M").time() and t_sleep < datetime.strptime("22:00", "%H:%M").time():
                         count_sleep += 1
                         
