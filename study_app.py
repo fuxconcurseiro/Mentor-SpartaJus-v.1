@@ -25,7 +25,7 @@ st.set_page_config(
     page_title="Mentor SpartaJus",
     page_icon="🏛️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded"  # Força iniciar aberta
 )
 
 # --- CONSTANTES GLOBAIS ---
@@ -181,31 +181,21 @@ ensure_users_exist()
 # --- ESTILOS CSS ---
 st.markdown("""
     <style>
-    /* Elementos que queremos esconder totalmente */
+    /* ESTRATÉGIA BARRA LATERAL FIXA:
+       1. initial_sidebar_state="expanded" (no config python) garante que abra.
+       2. O CSS abaixo ESCONDE o botão de fechar/abrir, travando-a no estado aberto.
+    */
+    [data-testid="stSidebarCollapsedControl"] {
+        display: none !important;
+    }
+
+    /* Esconde menu e footer padrão */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     [data-testid="stDecoration"] {visibility: hidden;}
-    
-    /* Barra de ferramentas (menu de 3 pontos) - Opcional: comente se quiser ver */
     [data-testid="stToolbar"] {visibility: hidden;}
     
-    /* HEADER: Deixamos transparente para nao bloquear a visao, mas VISIVEL para que os botoes funcionem */
-    [data-testid="stHeader"] {
-        background-color: rgba(0,0,0,0);
-        visibility: visible;
-    }
-
-    /* BOTÃO DA SIDEBAR (CHEVRON): Forçamos a visibilidade e estilizamos */
-    [data-testid="stSidebarCollapsedControl"] {
-        visibility: visible !important;
-        display: block !important;
-        color: #D4AF37 !important; /* Dourado */
-        background-color: rgba(74, 90, 106, 0.3); /* Fundo sutil para garantir contraste */
-        border-radius: 5px;
-        z-index: 100000; /* Garante que fique acima de tudo */
-    }
-    
-    /* Estilos Gerais do App */
+    /* Estilos Gerais */
     .stApp { background-color: #708090; color: #C2D5ED; }
     .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
     
@@ -313,20 +303,17 @@ def generate_tree_svg(branches):
             <text x="50" y="70" font-size="5" text-anchor="middle" fill="#C2D5ED">A árvore secou...</text>
         </svg>
         """
-    
     leaves_svg = ""
     random.seed(42)
     trunk_h = min(30 + (branches * 0.5), 60)
     trunk_y = 100 - trunk_h
     count = min(max(1, branches), 150)
-    
     for i in range(count):
         cx = 50 + random.randint(-20 - int(branches/2), 20 + int(branches/2))
         cy = trunk_y + random.randint(-20 - int(branches/2), 10)
         r = random.randint(3, 6)
         color = "#047a0a" # Verde
         leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}" opacity="0.9" />'
-
     return f"""
     <svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
         <rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />
@@ -360,6 +347,33 @@ def calculate_streak(logs):
             current_check -= timedelta(days=1)
         elif d_obj < current_check: break
     return streak
+
+# --- PROMPT DO SISTEMA (ORÁCULO) ---
+ORACLE_SYSTEM_PROMPT = """
+Responda como um especialista em concursos públicos jurídicos na área do direito, principalmente ministério público, magistratura e procuradorias de estado e capitais municipais, considere também uma vasta experiência como membro presidente de diversas bancas examinadoras ao longo de 15 anos, aprovado em diversos concursos de carreira, especialista em responder provas discursivas com objetividade e assertividade.
+Portanto, todas as respostas devem trazer um conceito objetivo, acompanhado de um raciocínio objetivo que o sustenta, além de um exemplo prático, onde até uma criança de 7 anos possa visualizar e entender o texto, proporcionando um aprendizado acelerado.
+Para tanto a linguagem da escrita deve ser clara, coesa, simples e assertiva.
+Além disso, após cada pergunta, questione outros pontos a serem explorados e que derivam do assunto tratado de forma estratégica e associativa, para que o assunto possa ser aprofundado se assim o usuário desejar.
+
+Por fim, use estas regras exatamente como estão em todas as respostas.
+Não reinterprete.
+• Do not invent or assume facts.
+• If unconfirmed, say:
+- "I cannot verify this."
+- "I do not have access to that information."
+• Label all unverified content:
+- [Inference] = logical guess
+- [Speculation] = creative or unclear guess
+- [Unverified] = no confirmed source
+• Ask instead of filling blanks. Do not change input.
+• If any part is unverified, label the full response.
+• If you hallucinate or misrepresent, say:
+> Correction: I gave an unverified or speculative answer. It should have been labeled.
+• Do not use the following unless quoting or citing:
+- Prevent, Guarantee, Will never, Fixes, Eliminates, Ensures that
+• For behavior claims, include:
+- [Unverified] or [Inferencel and a note that this is expected behavior, not guaranteed
+"""
 
 # --- AUTH SYSTEM ---
 def login_page():
@@ -677,8 +691,6 @@ def main_app():
             
             st.divider()
             st.dataframe(cdf.style.apply(lambda r: ['background-color: #5C4033; color: white']*len(r) if r['Espartano']==user else ['']*len(r), axis=1), use_container_width=True)
-        else:
-            st.info("Nenhum dado comunitário disponível.")
 
     # ABA 4
     with current_tabs[3]:
