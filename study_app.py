@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 import re
 import random
 import json
@@ -21,8 +21,6 @@ except ImportError:
     SHEETS_AVAILABLE = False
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-# Removido o 'expanded' forçado para deixar o usuário controlar, 
-# mas o padrão será tentar abrir.
 st.set_page_config(
     page_title="Mentor SpartaJus",
     page_icon="🏛️",
@@ -35,6 +33,17 @@ DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
 ADMIN_USER = "fux_concurseiro" 
 SHEET_NAME = "SpartaJus_DB" 
+
+# --- CONFIGURAÇÃO DE FUSO HORÁRIO (BRASÍLIA UTC-3) ---
+BRT = timezone(timedelta(hours=-3))
+
+def get_now_br():
+    """Retorna a data e hora atual no fuso de Brasília."""
+    return datetime.now(BRT)
+
+def get_today_br():
+    """Retorna a data de hoje no fuso de Brasília."""
+    return get_now_br().date()
 
 # --- GERENCIAMENTO DE API KEY (IA) ---
 ENCRYPTED_KEY_LOCAL = "QUl6YVN5RFI1VTdHeHNCZVVVTFE5M1N3UG9VNl9CaGl3VHZzMU9n"
@@ -171,7 +180,7 @@ def ensure_users_exist():
                 "logs": [],
                 "agendas": {},
                 "tree_branches": 1,
-                "created_at": str(datetime.now()),
+                "created_at": get_now_br().strftime("%Y-%m-%d %H:%M:%S"),
                 "mod_message": ""
             }
             data_changed = True
@@ -365,7 +374,7 @@ def calculate_streak(logs):
     if not study_dates: return 0
     streak = 0
     current_check = datetime.strptime(study_dates[0], "%Y-%m-%d").date()
-    if (date.today() - current_check).days > 1: return 0
+    if (get_today_br() - current_check).days > 1: return 0
     for d_str in study_dates:
         d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
         if d_obj == current_check:
@@ -405,7 +414,7 @@ def login_page():
             db = load_db()
             if new_user in db: st.error("Usuário já existe.")
             elif new_user and new_pass:
-                db[new_user] = {"password": new_pass, "logs": [], "agendas": {}, "tree_branches": 1, "created_at": str(datetime.now()), "mod_message": ""}
+                db[new_user] = {"password": new_pass, "logs": [], "agendas": {}, "tree_branches": 1, "created_at": get_now_br().strftime("%Y-%m-%d %H:%M:%S"), "mod_message": ""}
                 save_db(db)
                 st.success("Conta criada! Faça login na aba 'Entrar'.")
             else: st.warning("Preencha todos os campos.")
@@ -442,6 +451,8 @@ def main_app():
     if 'tree_branches' not in user_data: user_data['tree_branches'] = 1
     if 'mod_message' not in user_data: user_data['mod_message'] = "" 
 
+    st.session_state.api_key = get_api_key()
+    
     total_questions = sum([log.get('questoes', 0) for log in user_data['logs']])
     total_pages = sum([log.get('paginas', 0) for log in user_data['logs']])
     streak = calculate_streak(user_data['logs'])
@@ -498,10 +509,10 @@ def main_app():
             if 'admin_user' in st.session_state: del st.session_state['admin_user']
             st.rerun()
         st.divider()
-        st.markdown("### 💾 Backup de Segurança")
+        st.markdown(f"### 💾 Backup: {get_now_br().strftime('%H:%M')}")
         if os.path.exists(DB_FILE):
             with open(DB_FILE, "r", encoding="utf-8") as f:
-                st.download_button("Baixar Dados (JSON)", f, f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}.json", "application/json")
+                st.download_button("Baixar Dados (JSON)", f, f"backup_{get_now_br().strftime('%Y%m%d_%H%M')}.json", "application/json")
         else: st.info("Sem dados.")
         st.info("Versão: SpartaJus Clean Edition")
 
@@ -539,7 +550,7 @@ def main_app():
         with col_form:
             st.subheader("📝 Registro de Batalha")
             with st.form("daily_log"):
-                date_log = st.date_input("Data da Batalha", value=date.today(), format="DD/MM/YYYY")
+                date_log = st.date_input("Data da Batalha", value=get_today_br(), format="DD/MM/YYYY")
                 cc1, cc2 = st.columns(2)
                 with cc1: 
                     wt = st.text_input("Acordou (Ex: 08:00)", value="06:00")
@@ -575,7 +586,7 @@ def main_app():
             period = st.selectbox("📅 Período:", ["Total", "Diário", "Semanal", "Mensal", "Bimestral", "Trimestral", "Semestral", "Anual"])
             df_all = pd.DataFrame(user_data['logs'])
             if 'data' in df_all.columns: df_all['data_obj'] = pd.to_datetime(df_all['data']).dt.date
-            today = date.today()
+            today = get_today_br()
             
             if period == "Diário": df_f = df_all[df_all['data_obj'] == today]
             elif period == "Semanal": df_f = df_all[df_all['data_obj'] >= today - timedelta(days=7)]
@@ -797,7 +808,7 @@ def main_app():
                         if submit_alert and new_alert_text.strip():
                             alert_obj = {
                                 "id": str(datetime.now().timestamp()),
-                                "date": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                "date": get_now_br().strftime("%d/%m/%Y %H:%M"),
                                 "text": new_alert_text,
                                 "author": user
                             }
@@ -865,7 +876,7 @@ def main_app():
         with c_plan:
             st.subheader("Plano de Batalha")
             
-            plan_date = st.date_input("Para qual dia você está planejando?", value=date.today() + timedelta(days=1), format="DD/MM/YYYY")
+            plan_date = st.date_input("Para qual dia você está planejando?", value=get_today_br() + timedelta(days=1), format="DD/MM/YYYY")
             plan_key = plan_date.strftime("%Y-%m-%d")
             
             current_plan = user_data['agendas'].get(plan_key, "")
@@ -886,7 +897,7 @@ def main_app():
         with c_stats:
             st.subheader("Disciplina Mensal")
             
-            today = date.today()
+            today = get_today_br()
             current_month = today.month
             current_year = today.year
             
@@ -995,7 +1006,7 @@ def main_app():
                     if st.form_submit_button("Criar"):
                         db = load_db()
                         if nu not in db:
-                            db[nu] = {"password": np, "logs": [], "agendas": {}, "tree_branches": 1, "created_at": str(datetime.now()), "mod_message": ""}
+                            db[nu] = {"password": np, "logs": [], "agendas": {}, "tree_branches": 1, "created_at": get_now_br().strftime("%Y-%m-%d %H:%M:%S"), "mod_message": ""}
                             save_db(db)
                             st.success("Criado!")
                         else: st.error("Já existe.")
