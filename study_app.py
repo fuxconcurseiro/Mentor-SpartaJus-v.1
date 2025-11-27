@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from datetime import datetime, date, time as dt_time, timedelta
+from datetime import datetime, date, timedelta
 import re
 import random
 import json
@@ -21,6 +21,8 @@ except ImportError:
     SHEETS_AVAILABLE = False
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
+# Removido o 'expanded' forçado para deixar o usuário controlar, 
+# mas o padrão será tentar abrir.
 st.set_page_config(
     page_title="Mentor SpartaJus",
     page_icon="🏛️",
@@ -33,9 +35,6 @@ DB_FILE = "sparta_users.json"
 LOGO_FILE = "logo_spartajus.jpg" 
 ADMIN_USER = "fux_concurseiro" 
 SHEET_NAME = "SpartaJus_DB" 
-
-# --- GERENCIAMENTO DE API KEY (IA) ---
-# (Removido pois não usamos mais IA)
 
 # --- FUNÇÕES DE GOOGLE SHEETS (PERSISTÊNCIA NA NUVEM) ---
 
@@ -173,32 +172,15 @@ ensure_users_exist()
 # --- ESTILOS CSS ---
 st.markdown("""
     <style>
-    /* RESET DE VISIBILIDADE */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    [data-testid="stDecoration"] {visibility: hidden;}
-    [data-testid="stToolbar"] {visibility: hidden;}
+    /* RESET DE VISIBILIDADE: Removemos regras que escondem headers para garantir acesso */
     
-    /* HEADER Transparente */
-    [data-testid="stHeader"] {
-        background-color: rgba(0,0,0,0);
-        visibility: visible;
-    }
-
-    /* BOTÃO DA SIDEBAR */
-    [data-testid="stSidebarCollapsedControl"] {
-        visibility: visible !important;
-        display: block !important;
-        color: #D4AF37 !important;
-        background-color: rgba(74, 90, 106, 0.3);
-        border-radius: 5px;
-        z-index: 100000;
-    }
-    
-    /* Estilos Gerais */
+    /* Fundo Geral */
     .stApp { background-color: #708090; color: #C2D5ED; }
-    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
     
+    /* Texto Geral */
+    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
+
+    /* Inputs */
     .stTextInput > div > div > input, 
     .stNumberInput > div > div > input, 
     .stDateInput > div > div > input,
@@ -209,13 +191,28 @@ st.markdown("""
     }
     ::placeholder { color: #a0b0c0 !important; opacity: 0.7; }
     
+    /* Títulos */
     h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
         color: #C2D5ED !important; font-family: 'Helvetica Neue', sans-serif; text-shadow: 1px 1px 2px black;
     }
     
-    [data-testid="stSidebar"] { background-color: #586878; border-right: 2px solid #C4A484; }
+    /* SIDEBAR (Estilo Reforçado) */
+    [data-testid="stSidebar"] { 
+        background-color: #586878; 
+        border-right: 2px solid #C4A484;
+    }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 { color: #C2D5ED !important; }
     
+    /* Botão de Controle da Sidebar (Chevron/X) */
+    /* Garantimos que ele seja visível e tenha cor contrastante */
+    [data-testid="stSidebarCollapsedControl"] {
+        color: #D4AF37 !important; /* Dourado */
+        background-color: rgba(74, 90, 106, 0.3); /* Fundo sutil para garantir contraste */
+        border-radius: 5px;
+        z-index: 100000; /* Garante que fique acima de tudo */
+    }
+    
+    /* Botões Gerais */
     .stButton>button {
         background-color: #4a5a6a; color: #C2D5ED; border: 1px solid #D4AF37; 
         border-radius: 4px; height: 3em; font-weight: bold; transition: all 0.3s;
@@ -224,6 +221,7 @@ st.markdown("""
         background-color: #D4AF37; color: #2c3e50; border-color: #C2D5ED;
     }
     
+    /* Cards */
     .metric-card { background-color: #586878; padding: 15px; border-radius: 8px; border: 1px solid #C4A484; }
     .metric-card h4, .metric-card p { color: #C2D5ED !important; }
     
@@ -295,6 +293,19 @@ def parse_time_str_to_min(t_str):
     except: pass
     return 0
 
+def parse_time_str_to_obj(t_str):
+    """Converte string 'HH:MM' para objeto datetime.time"""
+    try:
+        t_str = t_str.strip()
+        for fmt in ("%H:%M", "%Hh%M", "%H:%M:%S"):
+            try:
+                return datetime.strptime(t_str, fmt).time()
+            except ValueError:
+                continue
+    except:
+        pass
+    return None
+
 def generate_tree_svg(branches):
     scale = min(max(branches, 1), 50) / 10.0
     if branches <= 0:
@@ -348,22 +359,6 @@ def calculate_streak(logs):
             current_check -= timedelta(days=1)
         elif d_obj < current_check: break
     return streak
-
-# --- AUXILIAR: PARSE DE HORA HH:MM ---
-def parse_time_str_to_obj(t_str):
-    """Converte string 'HH:MM' para objeto datetime.time"""
-    try:
-        # Remove espaços e tenta limpar
-        t_str = t_str.strip()
-        # Formatos possiveis
-        for fmt in ("%H:%M", "%Hh%M", "%H:%M:%S"):
-            try:
-                return datetime.strptime(t_str, fmt).time()
-            except ValueError:
-                continue
-    except:
-        pass
-    return None
 
 # --- AUTH SYSTEM ---
 def login_page():
@@ -594,7 +589,8 @@ def main_app():
                 st.subheader("📈 Evolução de Questões")
                 df_l = df_f.sort_values(by='data_obj')
                 if not df_l.empty:
-                    fig_l, ax_l = plt.subplots(figsize=(6, 2))
+                    # FIGSIZE REDUZIDO: de (6, 2) para (5, 1.5)
+                    fig_l, ax_l = plt.subplots(figsize=(5, 1.5))
                     fig_l.patch.set_facecolor('white')
                     ax_l.set_facecolor('white')
                     grp = df_l.groupby('data_obj')['questoes'].sum().reset_index()
@@ -603,7 +599,11 @@ def main_app():
                     ax_l.tick_params(colors='#333333', rotation=45, labelsize=8)
                     for spine in ax_l.spines.values(): spine.set_edgecolor('#333333')
                     ax_l.grid(color='#333333', linestyle=':', alpha=0.2)
-                    st.pyplot(fig_l)
+                    
+                    # COLUNAS PARA RESTRINGIR LARGURA VISUAL
+                    cl1, cl2, cl3 = st.columns([1, 4, 1])
+                    with cl2:
+                        st.pyplot(fig_l)
             else: st.warning("Sem dados para o período.")
             
             st.divider()
@@ -656,66 +656,156 @@ def main_app():
                 st.rerun()
         else: st.info("Sem registros.")
 
-    # ABA 3
+    # ABA 3: RANKING GLOBAL (COMUNIDADE)
     with current_tabs[2]:
-        st.header("🏆 Hall da Fama")
-        db = load_db()
-        c_data = []
-        for u, d in db.items():
-            if u == "global_alerts": continue
-            qs = sum(l.get('questoes', 0) for l in d.get('logs', []))
-            pg = sum(l.get('paginas', 0) for l in d.get('logs', []))
-            stk = calculate_streak(d.get('logs', []))
-            tm = 0
-            for l in d.get('logs', []):
-                for m in l.get('materias', []):
-                    if '-' in m: tm += parse_time_str_to_min(m.split('-', 1)[0])
-            c_data.append({"Espartano": u, "Patente": get_patent(qs), "Questões": qs, "Páginas": pg, "Fogo": stk, "Horas": round(tm/60, 1)})
+        st.header("🏆 Hall da Fama Espartano")
+        st.caption("Classificação baseada no total de Questões.")
         
-        if c_data:
-            cdf = pd.DataFrame(c_data).sort_values(by="Questões", ascending=False).reset_index(drop=True)
-            cdf.index += 1
+        all_db = load_db()
+        community_data = []
+        
+        for u_name, u_data in all_db.items():
+            if u_name == "global_alerts":
+                continue
+                
+            u_logs = u_data.get('logs', [])
+            tot_q = sum(l.get('questoes', 0) for l in u_logs)
+            tot_p = sum(l.get('paginas', 0) for l in u_logs)
+            u_streak = calculate_streak(u_logs)
+            patente = get_patent(tot_q)
             
-            top = cdf.head(3)
-            if not top.empty:
-                c = st.columns(3)
-                if len(top) >= 2: c[0].markdown(f"<div class='podium-silver'><h2>🥈</h2><h3>{top.iloc[1]['Espartano']}</h3><p>{top.iloc[1]['Questões']} Questões</p></div>", unsafe_allow_html=True)
-                if len(top) >= 1: c[1].markdown(f"<div class='podium-gold'><h1>🥇</h1><h2>{top.iloc[0]['Espartano']}</h2><p>{top.iloc[0]['Questões']} Questões</p></div>", unsafe_allow_html=True)
-                if len(top) >= 3: c[2].markdown(f"<div class='podium-bronze'><h2>🥉</h2><h3>{top.iloc[2]['Espartano']}</h3><p>{top.iloc[2]['Questões']} Questões</p></div>", unsafe_allow_html=True)
+            total_min = 0
+            for l in u_logs:
+                for m in l.get('materias', []):
+                    if '-' in m:
+                        total_min += parse_time_str_to_min(m.split('-', 1)[0])
+            total_hours = round(total_min / 60, 1)
+            
+            community_data.append({
+                "Espartano": u_name,
+                "Patente": patente,
+                "Questões": tot_q,
+                "Páginas": tot_p,
+                "Fogo (Dias)": u_streak,
+                "Tempo Total (h)": total_hours
+            })
+            
+        if community_data:
+            df_comm = pd.DataFrame(community_data)
+            # Ordenar por Questões (Ranking)
+            df_comm = df_comm.sort_values(by="Questões", ascending=False).reset_index(drop=True)
+            df_comm.index += 1 
+            df_comm.index.name = "Rank"
+            
+            # --- PÓDIO ---
+            top_users = df_comm.head(3)
+            if not top_users.empty:
+                cols = st.columns([1, 1, 1])
+                
+                # Prata (2º Lugar) - Esquerda
+                if len(top_users) >= 2:
+                    with cols[0]:
+                        u2 = top_users.iloc[1]
+                        st.markdown(f"""
+                        <div class="podium-silver">
+                            <h2>🥈 2º Lugar</h2>
+                            <h3>{u2['Espartano']}</h3>
+                            <p>{u2['Questões']} Questões</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # Ouro (1º Lugar) - Centro
+                if len(top_users) >= 1:
+                    with cols[1]:
+                        u1 = top_users.iloc[0]
+                        st.markdown(f"""
+                        <div class="podium-gold">
+                            <h1>🥇 1º Lugar</h1>
+                            <h2>{u1['Espartano']}</h2>
+                            <p><strong>{u1['Patente']}</strong></p>
+                            <p>{u1['Questões']} Questões</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # Bronze (3º Lugar) - Direita
+                if len(top_users) >= 3:
+                    with cols[2]:
+                        u3 = top_users.iloc[2]
+                        st.markdown(f"""
+                        <div class="podium-bronze">
+                            <h2>🥉 3º Lugar</h2>
+                            <h3>{u3['Espartano']}</h3>
+                            <p>{u3['Questões']} Questões</p>
+                        </div>
+                        """, unsafe_allow_html=True)
             
             st.divider()
-            st.dataframe(cdf.style.apply(lambda r: ['background-color: #5C4033; color: white']*len(r) if r['Espartano']==user else ['']*len(r), axis=1), use_container_width=True)
+            st.subheader("Classificação Geral")
+            
+            def highlight_self(row):
+                if row['Espartano'] == user:
+                    return ['background-color: #5C4033; color: white'] * len(row)
+                return [''] * len(row)
 
-    # ABA 4
+            st.dataframe(
+                df_comm.style.apply(highlight_self, axis=1), 
+                use_container_width=True
+            )
+        else:
+            st.info("Nenhum dado comunitário disponível.")
+
+    # --- ABA 4: ALERTAS DO MENTOR (NOVA) ---
     with current_tabs[3]:
         st.header("📢 Alertas do Mentor")
+        
         db = load_db()
-        if "global_alerts" not in db: db["global_alerts"] = []
-        
-        c_gl, c_pr = st.columns([1, 1])
-        
-        with c_gl:
-            st.subheader("🌍 Mural Global")
-            if user == ADMIN_USER:
-                with st.expander("Novo Alerta"):
-                    nat = st.text_area("Texto:")
-                    if st.button("Publicar"):
-                        db["global_alerts"].insert(0, {"id": str(time.time()), "date": datetime.now().strftime("%d/%m %H:%M"), "text": nat, "author": user})
-                        save_db(db)
-                        st.rerun()
+        if "global_alerts" not in db:
+            db["global_alerts"] = []
             
-            alts = db.get("global_alerts", [])
-            if not alts: st.info("Vazio.")
+        col_global, col_priv = st.columns([1, 1])
+        
+        with col_global:
+            st.subheader("🌍 Mural Global")
+            
+            if user == ADMIN_USER:
+                with st.expander("📝 Escrever Novo Alerta Global", expanded=False):
+                    with st.form("new_alert_form"):
+                        new_alert_text = st.text_area("Mensagem para todos:", height=80)
+                        submit_alert = st.form_submit_button("📢 Publicar Aviso")
+                        
+                        if submit_alert and new_alert_text.strip():
+                            alert_obj = {
+                                "id": str(datetime.now().timestamp()),
+                                "date": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                                "text": new_alert_text,
+                                "author": user
+                            }
+                            db["global_alerts"].insert(0, alert_obj)
+                            save_db(db)
+                            st.success("Publicado!")
+                            st.rerun()
+            
+            alerts = db.get("global_alerts", [])
+            if not alerts:
+                st.info("Nenhum alerta global.")
             else:
-                for a in alts:
-                    st.markdown(f"<div class='mod-message'><div style='font-size:0.7em; color:#D4AF37;'>{a['date']}</div><div>{a['text']}</div></div>", unsafe_allow_html=True)
-                    if user == ADMIN_USER and st.button("🗑️", key=a['id']):
-                        db["global_alerts"].remove(a)
-                        save_db(db)
-                        st.rerun()
+                for alert in alerts:
+                    st.markdown(f"""
+                    <div class="mod-message" style="margin-bottom: 10px; padding: 10px;">
+                        <div style="font-size: 0.7em; color: #D4AF37;">📅 {alert.get('date')}</div>
+                        <div style="white-space: pre-wrap;">{alert.get('text')}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if user == ADMIN_USER:
+                        if st.button(f"🗑️ Apagar", key=f"del_{alert.get('id')}"):
+                            db["global_alerts"].remove(alert)
+                            save_db(db)
+                            st.rerun()
 
-        with c_pr:
-            st.subheader("📨 Mensagens Privadas")
+        with col_priv:
+            st.subheader("📨 Mensagens Individuais")
+            
             if user == ADMIN_USER:
                 st.markdown("**Enviar/Gerenciar**")
                 usrs = [k for k in db.keys() if k not in ["global_alerts", ADMIN_USER]]
@@ -735,10 +825,17 @@ def main_app():
                         st.rerun()
             else:
                 mm = user_data.get('mod_message', '')
-                if mm: st.markdown(f"<div class='private-message'><h3>⚠️ MENSAGEM</h3>{mm}</div>", unsafe_allow_html=True)
-                else: st.info("Sem mensagens novas.")
+                if mm:
+                    st.markdown(f"""
+                    <div class="private-message">
+                        <h3 style="color: #D4AF37; margin-top:0;">⚠️ MENSAGEM DO MENTOR</h3>
+                        <p style="font-size: 1.1em;">{my_msg}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.info("Você não tem mensagens privadas novas.")
 
-    # ABA 5: AGENDA DE GUERRA
+    # --- ABA 5: AGENDA DE GUERRA (NOVA) ---
     with current_tabs[4]:
         st.header("📅 Agenda & Metas")
         
@@ -815,69 +912,58 @@ def main_app():
                 st.balloons()
                 st.success("Disciplina Perfeita! Um verdadeiro Espartano!")
 
-    # ABA 6: COMPORTAMENTO DO ESPARTANO (NOVA)
+    # --- ABA 6: COMPORTAMENTO DO ESPARTANO (NOVA) ---
     with current_tabs[5]:
         st.header("🦁 Comportamento do Espartano")
         st.caption("Análise de hábitos por mês.")
         
         if len(user_data['logs']) > 0:
             df_beh = pd.DataFrame(user_data['logs'])
-            # Converter data
             if 'data' in df_beh.columns:
                 df_beh['dt'] = pd.to_datetime(df_beh['data'])
                 df_beh['month_year'] = df_beh['dt'].dt.strftime('%m/%Y')
             
-            # Seletor de Mês
             available_months = sorted(df_beh['month_year'].unique(), reverse=True)
             selected_month = st.selectbox("Selecione o Mês:", available_months)
             
-            # Filtrar
             df_m = df_beh[df_beh['month_year'] == selected_month]
             
-            # Calcular Indicadores
             count_wake = 0
             count_sleep = 0
             count_train = 0
             count_read = 0
             
             for idx, row in df_m.iterrows():
-                # Acordou cedo (< 06:00)
                 t_wake = parse_time_str_to_obj(str(row.get('acordou', '')))
-                if t_wake and t_wake < dt_time(6, 0):
+                if t_wake and t_wake < datetime.strptime("06:00", "%H:%M").time():
                     count_wake += 1
                     
-                # Dormiu cedo (18:00 - 21:59)
                 t_sleep = parse_time_str_to_obj(str(row.get('dormiu', '')))
                 if t_sleep:
-                    # Considera "cedo" se for maior que 18h e menor que 22h
-                    if t_sleep >= dt_time(18, 0) and t_sleep < dt_time(22, 0):
+                    # Considera cedo entre 18h e 22h (exclusivo 22h, ou seja < 22:00:00)
+                    # Ajuste fino: se for 22:00 exato, não conta. Se for 21:59 conta.
+                    # O pedido foi "antes das 22:00".
+                    if t_sleep >= datetime.strptime("18:00", "%H:%M").time() and t_sleep < datetime.strptime("22:00", "%H:%M").time():
                         count_sleep += 1
                         
-                # Treino (Series > 0)
-                if int(row.get('series', 0)) > 0:
-                    count_train += 1
-                    
-                # Leitura (Paginas > 0)
-                if int(row.get('paginas', 0)) > 0:
-                    count_read += 1
+                if int(row.get('series', 0)) > 0: count_train += 1
+                if int(row.get('paginas', 0)) > 0: count_read += 1
             
-            # Exibição
             st.markdown(f"### Resultados de {selected_month}")
             
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("🌅 Acordou Cedo", f"{count_wake} dias")
-            c2.metric("🌙 Dormiu Cedo", f"{count_sleep} dias")
+            c1.metric("🌅 Acordou Cedo (< 6h)", f"{count_wake} dias")
+            c2.metric("🌙 Dormiu Cedo (< 22h)", f"{count_sleep} dias")
             c3.metric("💪 Treinou", f"{count_train} dias")
             c4.metric("📚 Leu", f"{count_read} dias")
             
-            # Detalhes visuais extras
             if count_wake >= 20: st.success("Excelente disciplina matinal!")
             if count_train >= 20: st.success("Corpo de aço em construção!")
             
         else:
             st.info("Nenhum registro encontrado para análise comportamental.")
 
-    # ABA 7 (Moderação)
+    # --- ABA 7 (Moderação) ---
     if user == ADMIN_USER:
         with current_tabs[6]:
             st.header("🛡️ Moderação")
