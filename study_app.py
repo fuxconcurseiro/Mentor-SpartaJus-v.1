@@ -167,7 +167,7 @@ def ensure_users_exist():
             db[user] = {
                 "password": default_pass,
                 "logs": [],
-                "agendas": {}, # NOVO CAMPO DE AGENDA
+                "agendas": {},
                 "tree_branches": 1,
                 "created_at": str(datetime.now()),
                 "mod_message": ""
@@ -181,10 +181,21 @@ ensure_users_exist()
 # --- ESTILOS CSS ---
 st.markdown("""
     <style>
+    /* Esconde o menu principal e rodapé */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
+    
+    /* Esconde a barra de ferramentas superior (onde fica o Running), mas NÃO o header inteiro */
     [data-testid="stToolbar"] {visibility: hidden;}
+    
+    /* Esconde a decoração colorida no topo (a barra arco-iris/vermelha) */
+    [data-testid="stDecoration"] {visibility: hidden;}
+    
+    /* Garante que o botão de expandir a sidebar (chevron) seja visível e tenha cor de destaque */
+    [data-testid="stSidebarCollapsedControl"] {
+        visibility: visible;
+        color: #D4AF37 !important; /* Dourado para ser visto no fundo escuro */
+    }
     
     .stApp { background-color: #708090; color: #C2D5ED; }
     .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
@@ -274,22 +285,15 @@ def parse_time_str_to_min(t_str):
             hours = int(parts[0]) if parts[0].isdigit() else 0
             rest = parts[1]
             if 'm' in rest:
-                mins = int(rest.split('m')[0]) if rest.split('m')[0].isdigit() else 0
-            elif rest.isdigit():
-                mins = int(rest)
-            else:
-                mins = 0
-            total_min = hours * 60 + mins
-        elif 'm' in t_str:
-            total_min = int(t_str.split('m')[0])
+                mins = int(rest.split('m')[0]) if rest.split('m')[0].isdigit() else (int(rest) if rest.isdigit() else 0)
+            return hours * 60 + mins
+        elif 'm' in t_str: return int(t_str.split('m')[0])
         elif ':' in t_str:
             h, m = t_str.split(':')
-            total_min = int(h)*60 + int(m)
-        elif t_str.isdigit():
-            total_min = int(t_str)
-    except:
-        return 0
-    return total_min
+            return int(h)*60 + int(m)
+        elif t_str.isdigit(): return int(t_str)
+    except: pass
+    return 0
 
 def generate_tree_svg(branches):
     scale = min(max(branches, 1), 50) / 10.0
@@ -300,20 +304,16 @@ def generate_tree_svg(branches):
             <text x="50" y="70" font-size="5" text-anchor="middle" fill="#C2D5ED">A árvore secou...</text>
         </svg>
         """
-    
     leaves_svg = ""
     random.seed(42)
     trunk_h = min(30 + (branches * 0.5), 60)
     trunk_y = 100 - trunk_h
     count = min(max(1, branches), 150)
-    
     for i in range(count):
         cx = 50 + random.randint(-20 - int(branches/2), 20 + int(branches/2))
         cy = trunk_y + random.randint(-20 - int(branches/2), 10)
         r = random.randint(3, 6)
-        color = "#047a0a" # Verde
-        leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}" opacity="0.9" />'
-
+        leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="#047a0a" opacity="0.9" />'
     return f"""
     <svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
         <rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />
@@ -323,55 +323,36 @@ def generate_tree_svg(branches):
     """
 
 def get_patent(total_questions):
-    patentes = [
-        "Andarilho de Vade Mecum",
-        "Saco de Pancada da Banca",
-        "Cadastro de Reserva",
-        "Titã Nota de Corte",
-        "Espartano Jurídico"
-    ]
-    index = min(int(total_questions / 5000), 4)
-    return patentes[index]
+    patentes = ["Andarilho de Vade Mecum", "Saco de Pancada da Banca", "Cadastro de Reserva", "Titã Nota de Corte", "Espartano Jurídico"]
+    return patentes[min(int(total_questions / 5000), 4)]
 
 def get_stars(total_pages):
     raw_bronze = int(total_pages / 1000)
     gold = raw_bronze // 9
-    remainder_gold = raw_bronze % 9
     if gold >= 3: return 3, 0, 0
-    silver = remainder_gold // 3
-    bronze = remainder_gold % 3
-    return gold, silver, bronze
+    rem = raw_bronze % 9
+    return gold, rem // 3, rem % 3
 
 def calculate_streak(logs):
     if not logs: return 0
     study_dates = sorted([log['data'] for log in logs if log.get('estudou')], reverse=True)
     if not study_dates: return 0
-    
     streak = 0
-    last_date_obj = datetime.strptime(study_dates[0], "%Y-%m-%d").date()
-    today = date.today()
-    
-    if (today - last_date_obj).days > 1:
-        return 0
-
-    current_check = last_date_obj
+    current_check = datetime.strptime(study_dates[0], "%Y-%m-%d").date()
+    if (date.today() - current_check).days > 1: return 0
     for d_str in study_dates:
         d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
         if d_obj == current_check:
             streak += 1
             current_check -= timedelta(days=1)
-        elif d_obj < current_check:
-            break
-            
+        elif d_obj < current_check: break
     return streak
 
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
     if os.path.exists(LOGO_FILE):
-        with c2:
-            st.image(LOGO_FILE)
-        
+        with c2: st.image(LOGO_FILE)
     st.title("🏛️ Mentor SpartaJus - Login")
     st.markdown("### Bem-vindo ao Campo de Batalha do Conhecimento")
     
@@ -388,8 +369,7 @@ def login_page():
                 st.session_state['user_data'] = db[username]
                 if 'admin_user' in st.session_state: del st.session_state['admin_user']
                 st.rerun()
-            else:
-                st.error("Usuário ou senha incorretos.")
+            else: st.error("Usuário ou senha incorretos.")
 
     with tab2:
         st.subheader("Novo Recruta")
@@ -397,21 +377,12 @@ def login_page():
         new_pass = st.text_input("Nova Senha", type="password", key="reg_pass")
         if st.button("Criar Conta", key="btn_reg"):
             db = load_db()
-            if new_user in db:
-                st.error("Usuário já existe.")
+            if new_user in db: st.error("Usuário já existe.")
             elif new_user and new_pass:
-                db[new_user] = {
-                    "password": new_pass,
-                    "logs": [],
-                    "agendas": {},
-                    "tree_branches": 1,
-                    "created_at": str(datetime.now()),
-                    "mod_message": ""
-                }
+                db[new_user] = {"password": new_pass, "logs": [], "agendas": {}, "tree_branches": 1, "created_at": str(datetime.now()), "mod_message": ""}
                 save_db(db)
                 st.success("Conta criada! Faça login na aba 'Entrar'.")
-            else:
-                st.warning("Preencha todos os campos.")
+            else: st.warning("Preencha todos os campos.")
 
     with tab3:
         st.subheader("Atualizar Credenciais")
@@ -425,8 +396,7 @@ def login_page():
                     db[cp_user]['password'] = cp_new_pass
                     save_db(db)
                     st.success("Senha alterada com sucesso!")
-                else:
-                    st.error("Dados incorretos.")
+                else: st.error("Dados incorretos.")
 
 def save_current_user_data():
     if 'user' in st.session_state and 'user_data' in st.session_state:
@@ -438,38 +408,25 @@ def save_current_user_data():
 def main_app():
     user = st.session_state['user']
     user_data = st.session_state['user_data']
-    
-    is_admin_mode = False
-    admin_name = ""
     is_real_admin = (user == ADMIN_USER)
-    
-    if 'admin_user' in st.session_state and st.session_state['admin_user'] == ADMIN_USER:
-        is_admin_mode = True
-        admin_name = st.session_state['admin_user']
+    is_admin_mode = ('admin_user' in st.session_state and st.session_state['admin_user'] == ADMIN_USER)
 
-    # Garantir chaves básicas no JSON
     if 'logs' not in user_data: user_data['logs'] = []
     if 'agendas' not in user_data: user_data['agendas'] = {} # Garante campo de agendas
     if 'tree_branches' not in user_data: user_data['tree_branches'] = 1
     if 'mod_message' not in user_data: user_data['mod_message'] = "" 
-    
-    # --- CONFIGURAR API KEY FIXA (Decodificando) ---
+
     st.session_state.api_key = get_api_key()
     
-    # --- CÁLCULOS TOTAIS ---
     total_questions = sum([log.get('questoes', 0) for log in user_data['logs']])
     total_pages = sum([log.get('paginas', 0) for log in user_data['logs']])
     streak = calculate_streak(user_data['logs'])
-    
-    current_level = int(total_questions / 1000)
     current_patent = get_patent(total_questions)
     g_stars, s_stars, b_stars = get_stars(total_pages)
 
-    # --- BARRA LATERAL ---
     with st.sidebar:
-        if os.path.exists(LOGO_FILE):
-            st.image(LOGO_FILE)
-            
+        if os.path.exists(LOGO_FILE): st.image(LOGO_FILE)
+        
         # STATUS DO GOOGLE SHEETS
         if SHEETS_AVAILABLE and get_google_credentials():
             st.caption("🟢 Conectado à Nuvem (Google Sheets)")
@@ -479,500 +436,285 @@ def main_app():
         if is_real_admin or is_admin_mode:
             with st.expander("🛡️ PAINEL DO MODERADOR", expanded=True):
                 st.caption("Área restrita de comando")
-                
                 if is_real_admin:
                     db = load_db()
-                    # Filtra apenas usuários
                     all_users = [k for k in db.keys() if k != "global_alerts"]
-                    
-                    st.markdown("**Gerenciar Dashboard de Usuário**")
                     target_user = st.selectbox("Selecione o Espartano:", all_users)
-                    
                     if st.button("👁️ Acessar Dashboard Selecionado"):
                         st.session_state['admin_user'] = ADMIN_USER
                         st.session_state['user'] = target_user
                         st.session_state['user_data'] = db[target_user]
                         st.rerun()
-                    
                 elif is_admin_mode:
                     st.warning(f"Visualizando: {user}")
                     if st.button("⬅️ Voltar ao Admin"):
                         st.session_state['user'] = ADMIN_USER
                         st.session_state['user_data'] = load_db()[ADMIN_USER]
                         st.rerun()
-
         st.divider()
         st.header(f"Olá, {user}")
-        
         if st.button("Sair / Logout"):
             del st.session_state['user']
             del st.session_state['user_data']
             if 'admin_user' in st.session_state: del st.session_state['admin_user']
             st.rerun()
-            
         st.divider()
-        st.header("⚙️ Configurações")
-        
-        # --- BOTÃO DE BACKUP NA BARRA LATERAL ---
         st.markdown("### 💾 Backup de Segurança")
         if os.path.exists(DB_FILE):
             with open(DB_FILE, "r", encoding="utf-8") as f:
-                st.download_button(
-                    label="Baixar Dados (JSON)",
-                    data=f,
-                    file_name=f"backup_spartajus_{datetime.now().strftime('%Y%m%d_%H%M')}.json",
-                    mime="application/json",
-                    help="Salva TODOS os dados: usuários, logs, mensagens e alertas."
-                )
-        else:
-            st.info("Nenhum dado para backup ainda.")
-        
+                st.download_button("Baixar Dados (JSON)", f, f"backup_{datetime.now().strftime('%Y%m%d_%H%M')}.json", "application/json")
+        else: st.info("Sem dados.")
         st.info("Versão: SpartaJus Clean Edition")
 
-    # --- CABEÇALHO ---
     st.title("🏛️ Mentor SpartaJus")
     
-    # --- BARRA DE PROGRESSO (Patente) ---
     progress_val = total_questions % 5000
     percent_val = (progress_val / 5000) * 100
-    next_goal = (int(total_questions / 5000) + 1) * 5000
     remaining = 5000 - progress_val
-    
     st.markdown(f"""
     <div style="background-color: #4a5a6a; border-radius: 12px; padding: 4px; margin-bottom: 10px; border: 1px solid #D4AF37; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
-        <div style="width: {percent_val}%; background-color: #047a0a; height: 24px; border-radius: 8px; text-align: center; line-height: 24px; color: white; font-weight: bold; font-size: 0.9em; white-space: nowrap; overflow: visible; transition: width 0.8s;">
-            &nbsp;{percent_val:.1f}%
-        </div>
+        <div style="width: {percent_val}%; background-color: #047a0a; height: 24px; border-radius: 8px; text-align: center; line-height: 24px; color: white; font-weight: bold; font-size: 0.9em; white-space: nowrap; overflow: visible; transition: width 0.8s;">&nbsp;{percent_val:.1f}%</div>
     </div>
-    <div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #C2D5ED; margin-top: -8px; margin-bottom: 20px;">
-        <span>⚔️ Atual: {progress_val} questões</span>
-        <span>🎯 Próxima Patente: Falta {remaining}</span>
-    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 0.85em; color: #C2D5ED; margin-top: -8px; margin-bottom: 20px;"><span>⚔️ Atual: {progress_val} questões</span><span>🎯 Próxima Patente: Falta {remaining}</span></div>
     """, unsafe_allow_html=True)
     
-    col_status1, col_status2 = st.columns([2, 1])
-    with col_status1:
-        st.markdown(f"""
-        <div class="rank-card">
-            <h2>{user.upper()}</h2>
-            <h3>🛡️ Patente: {current_patent}</h3>
-            <p>Total Acumulado: {total_questions} | 🔥 Fogo Espartano: {streak} dias</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    with col_status2:
-        star_html = ""
-        for _ in range(g_stars): star_html += "🟡"
-        for _ in range(s_stars): star_html += "⚪"
-        for _ in range(b_stars): star_html += "🟤"
-        if star_html == "": star_html = "<span style='color:#a0b0c0'>Sem estrelas</span>"
+    c1, c2 = st.columns([2, 1])
+    with c1: st.markdown(f"<div class='rank-card'><h2>{user.upper()}</h2><h3>🛡️ Patente: {current_patent}</h3><p>Total: {total_questions} | 🔥 Fogo: {streak} dias</p></div>", unsafe_allow_html=True)
+    with c2: 
+        star_html = "".join(["🟡"]*g_stars + ["⚪"]*s_stars + ["🟤"]*b_stars) or "<span style='color:#a0b0c0'>Sem estrelas</span>"
+        st.markdown(f"<div class='metric-card'><h4>⭐ Estrelas de Leitura</h4><div class='star-container'>{star_html}</div><p style='font-size: 0.8em; margin-top: 5px;'>Total Páginas: {total_pages}</p></div>", unsafe_allow_html=True)
 
-        st.markdown(f"""
-        <div class="metric-card">
-            <h4>⭐ Estrelas de Leitura</h4>
-            <div class="star-container">{star_html}</div>
-            <p style="font-size: 0.8em; margin-top: 5px;">Total Páginas: {total_pages}</p>
-        </div>
-        """, unsafe_allow_html=True)
+    tabs = ["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor", "📅 Agenda de Guerra"]
+    if user == ADMIN_USER: tabs.append("🛡️ Moderação")
+    current_tabs = st.tabs(tabs)
 
-    # --- DEFINIÇÃO DE ABAS ---
-    # Nova aba: Agenda
-    tab_names = ["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor", "📅 Agenda de Guerra"]
-    if user == ADMIN_USER: tab_names.append("🛡️ Moderação")
-    
-    current_tabs = st.tabs(tab_names)
-
-    # ABA 1: DIÁRIO
+    # ABA 1
     with current_tabs[0]:
         col_tree, col_form = st.columns([1, 1])
-
         with col_tree:
             st.subheader("Árvore da Constância")
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
-            
             if user_data.get('mod_message'):
-                st.markdown(f"""
-                <div class="private-message">
-                    <strong>📨 MENSAGEM DO MENTOR:</strong><br>
-                    {user_data['mod_message']}
-                </div>
-                """, unsafe_allow_html=True)
-
+                st.markdown(f"<div class='private-message'><strong>📨 MENSAGEM DO MENTOR:</strong><br>{user_data['mod_message']}</div>", unsafe_allow_html=True)
         with col_form:
             st.subheader("📝 Registro de Batalha")
             with st.form("daily_log"):
-                date_log = st.date_input("Data da Batalha", value=date.today(), format="DD/MM/YYYY")
-                
-                c1, c2 = st.columns(2)
-                with c1:
-                    wake_time = st.text_input("Acordou às (Ex: 08:02)", value="06:00")
-                    pages = st.number_input("Páginas Lidas", min_value=0, step=1)
-                    workout_sets = st.number_input("Séries Musculação", min_value=0, step=1)
-                with c2:
-                    sleep_time = st.text_input("Dormiu às (Ex: 22:30)", value="22:30")
-                    questions = st.number_input("Questões Feitas", min_value=0, step=1)
-                
+                d_log = st.date_input("Data", value=date.today(), format="DD/MM/YYYY")
+                cc1, cc2 = st.columns(2)
+                with cc1: 
+                    wt = st.text_input("Acordou (Ex: 08:00)", value="06:00")
+                    pg = st.number_input("Páginas", min_value=0, step=1)
+                    ws = st.number_input("Séries", min_value=0, step=1)
+                with cc2:
+                    sl = st.text_input("Dormiu (Ex: 22:00)", value="22:30")
+                    qs = st.number_input("Questões", min_value=0, step=1)
                 st.divider()
-                st.markdown("##### 📚 Detalhes de Estudo")
-                
-                default_subjects = pd.DataFrame([{"Matéria": "", "Tempo": ""}])
-                edited_subjects_df = st.data_editor(
-                    default_subjects, 
-                    num_rows="dynamic", 
-                    use_container_width=True,
-                    key="subjects_editor_new"
-                )
-                
-                submitted = st.form_submit_button("💾 Salvar Registro")
-                
-                if submitted:
-                    clean_subjects = []
-                    for index, row in edited_subjects_df.iterrows():
-                        if row["Matéria"] and str(row["Matéria"]).strip() != "":
-                            clean_subjects.append(f"{row['Tempo']} - {row['Matéria']}")
-                    
-                    is_study_day = (pages > 0) or (questions > 0) or (len(clean_subjects) > 0)
-                    date_str = date_log.strftime("%Y-%m-%d")
-                    existing_dates = [log['data'] for log in user_data['logs']]
-                    
-                    if date_str in existing_dates:
-                        st.warning("⚠️ Já existe um registro nesta data. Vá em Histórico para editar.")
+                st.markdown("##### 📚 Matérias")
+                sub_df = st.data_editor(pd.DataFrame([{"Matéria": "", "Tempo": ""}]), num_rows="dynamic", use_container_width=True)
+                if st.form_submit_button("💾 Salvar"):
+                    clean_subs = [f"{r['Tempo']} - {r['Matéria']}" for _, r in sub_df.iterrows() if r["Matéria"]]
+                    is_study = (pg > 0) or (qs > 0) or (len(clean_subs) > 0)
+                    d_str = d_log.strftime("%Y-%m-%d")
+                    if d_str in [l['data'] for l in user_data['logs']]:
+                        st.warning("Data já registrada. Edite no Histórico.")
                     else:
-                        entry = {
-                            "data": date_str,
-                            "acordou": wake_time, 
-                            "dormiu": sleep_time, 
-                            "paginas": pages,
-                            "questoes": questions,
-                            "series": workout_sets,
-                            "estudou": is_study_day,
-                            "materias": clean_subjects
-                        }
-                        user_data['logs'].append(entry)
-                        
-                        if is_study_day:
+                        user_data['logs'].append({"data": d_str, "acordou": wt, "dormiu": sl, "paginas": pg, "questoes": qs, "series": ws, "estudou": is_study, "materias": clean_subs})
+                        if is_study: 
                             user_data['tree_branches'] += 1
-                            st.toast("Vitória diária! +1 Ramo.", icon="🌿")
+                            st.toast("Vitória! +1 Ramo.", icon="🌿")
                         else:
                             user_data['tree_branches'] -= 2
                             st.toast("Dia perdido. -2 Ramos.", icon="🪓")
-                        
                         save_current_user_data()
                         st.rerun()
 
-    # ABA 2: HISTÓRICO E DASHBOARD
+    # ABA 2
     with current_tabs[1]:
         st.header("📊 Inteligência de Dados")
-        
         if len(user_data['logs']) > 0:
-            filter_opts = ["Total", "Diário", "Semanal", "Mensal", "Bimestral", "Trimestral", "Semestral", "Anual"]
-            period = st.selectbox("📅 Selecione o Período de Análise:", filter_opts)
-            
+            period = st.selectbox("📅 Período:", ["Total", "Diário", "Semanal", "Mensal", "Bimestral", "Trimestral", "Semestral", "Anual"])
             df_all = pd.DataFrame(user_data['logs'])
-            if 'data' in df_all.columns:
-                df_all['data_obj'] = pd.to_datetime(df_all['data']).dt.date
-            
+            if 'data' in df_all.columns: df_all['data_obj'] = pd.to_datetime(df_all['data']).dt.date
             today = date.today()
             
-            if period == "Diário":
-                df_filtered = df_all[df_all['data_obj'] == today]
-            elif period == "Semanal":
-                start_date = today - timedelta(days=7)
-                df_filtered = df_all[df_all['data_obj'] >= start_date]
-            elif period == "Mensal":
-                start_date = today - timedelta(days=30)
-                df_filtered = df_all[df_all['data_obj'] >= start_date]
-            elif period == "Bimestral":
-                start_date = today - timedelta(days=60)
-                df_filtered = df_all[df_all['data_obj'] >= start_date]
-            elif period == "Trimestral":
-                start_date = today - timedelta(days=90)
-                df_filtered = df_all[df_all['data_obj'] >= start_date]
-            elif period == "Semestral":
-                start_date = today - timedelta(days=180)
-                df_filtered = df_all[df_all['data_obj'] >= start_date]
-            elif period == "Anual":
-                start_date = today - timedelta(days=365)
-                df_filtered = df_all[df_all['data_obj'] >= start_date]
-            else: # Total
-                df_filtered = df_all
+            if period == "Diário": df_f = df_all[df_all['data_obj'] == today]
+            elif period == "Semanal": df_f = df_all[df_all['data_obj'] >= today - timedelta(days=7)]
+            elif period == "Mensal": df_f = df_all[df_all['data_obj'] >= today - timedelta(days=30)]
+            elif period == "Bimestral": df_f = df_all[df_all['data_obj'] >= today - timedelta(days=60)]
+            elif period == "Trimestral": df_f = df_all[df_all['data_obj'] >= today - timedelta(days=90)]
+            elif period == "Semestral": df_f = df_all[df_all['data_obj'] >= today - timedelta(days=180)]
+            elif period == "Anual": df_f = df_all[df_all['data_obj'] >= today - timedelta(days=365)]
+            else: df_f = df_all
 
-            if not df_filtered.empty:
-                f_quest = df_filtered['questoes'].sum()
-                f_pag = df_filtered['paginas'].sum()
-                f_ser = df_filtered['series'].sum()
+            if not df_f.empty:
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Questões", df_f['questoes'].sum())
+                m2.metric("Páginas", df_f['paginas'].sum())
+                m3.metric("Séries", df_f['series'].sum())
                 
-                cm1, cm2, cm3 = st.columns(3)
-                cm1.metric("Questões no Período", f_quest)
-                cm2.metric("Páginas no Período", f_pag)
-                cm3.metric("Séries no Período", f_ser)
-            
-                st.subheader("Gráfico de Tempo por Matéria")
-                
-                subject_mins = {}
-                for idx, row in df_filtered.iterrows():
-                    if 'materias' in row and isinstance(row['materias'], list):
-                        for item in row['materias']:
+                st.subheader("Tempo por Matéria")
+                sub_mins = {}
+                for _, r in df_f.iterrows():
+                    if 'materias' in r and isinstance(r['materias'], list):
+                        for item in r['materias']:
                             if '-' in item:
-                                parts = item.split('-', 1)
-                                time_str = parts[0].strip()
-                                subj_name = parts[1].strip()
-                                
-                                mins = parse_time_str_to_min(time_str)
-                                if mins > 0:
-                                    subject_mins[subj_name] = subject_mins.get(subj_name, 0) + mins
+                                p = item.split('-', 1)
+                                sub_mins[p[1].strip()] = sub_mins.get(p[1].strip(), 0) + parse_time_str_to_min(p[0].strip())
                 
-                if subject_mins:
-                    labels = list(subject_mins.keys())
-                    sizes = list(subject_mins.values())
-                    
-                    fig, ax = plt.subplots(figsize=(6, 3)) 
-                    fig.patch.set_facecolor('#F2F6FA') 
+                if sub_mins:
+                    fig, ax = plt.subplots(figsize=(6, 3))
+                    fig.patch.set_facecolor('#F2F6FA')
                     ax.set_facecolor('#F2F6FA')
-                    
                     colors = ['#FF0033', '#00FF33', '#3366FF', '#FF33FF', '#FFFF33', '#00FFFF', '#FF9933', '#9933FF']
-                    
-                    wedges, texts, autotexts = ax.pie(
-                        sizes, labels=None, autopct='%1.1f%%', 
-                        startangle=90, colors=colors[:len(labels)],
-                        textprops={'color':"#333333", 'fontsize': 8, 'weight': 'bold'} 
-                    )
-                    
-                    leg = ax.legend(wedges, labels,
-                              title="Matérias",
-                              loc="center left",
-                              bbox_to_anchor=(1, 0, 0.5, 1),
-                              frameon=False,
-                              labelcolor='#333333', 
-                              title_fontsize='small')
-                    plt.setp(leg.get_title(), color='#333333') 
-
-                    for text in texts: text.set_color('#333333')
-                    for autotext in autotexts: autotext.set_color('#333333')
-                    
-                    ax.axis('equal') 
+                    w, t, at = ax.pie(sub_mins.values(), labels=None, autopct='%1.1f%%', startangle=90, colors=colors[:len(sub_mins)], textprops={'color':"#333333", 'fontsize': 8, 'weight': 'bold'})
+                    ax.legend(w, sub_mins.keys(), title="Matérias", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), frameon=False, labelcolor='#333333')
                     st.pyplot(fig)
-                else:
-                    st.info("Sem dados de tempo/matéria para este período.")
-            
+                
                 st.subheader("📈 Evolução de Questões")
-                
-                df_line = df_filtered.copy()
-                df_line = df_line.sort_values(by='data_obj')
-                
-                if not df_line.empty:
-                    fig_line, ax_line = plt.subplots(figsize=(6, 2)) 
-                    fig_line.patch.set_facecolor('#F2F6FA') 
-                    ax_line.set_facecolor('#F2F6FA')
-                    
-                    df_line_grouped = df_line.groupby('data_obj')['questoes'].sum().reset_index()
-                    
-                    ax_line.plot(df_line_grouped['data_obj'], df_line_grouped['questoes'], 
-                                 marker='o', linestyle='-', color='#0044FF', 
-                                 linewidth=2, markersize=6, markerfacecolor='#FF0000') 
-                    
-                    ax_line.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m'))
-                    ax_line.tick_params(axis='x', colors='#333333', rotation=45, labelsize=8)
-                    ax_line.tick_params(axis='y', colors='#333333', labelsize=8)
-                    
-                    ax_line.spines['top'].set_visible(False)
-                    ax_line.spines['right'].set_visible(False)
-                    ax_line.spines['bottom'].set_color('#333333')
-                    ax_line.spines['left'].set_color('#333333')
-                    
-                    ax_line.grid(color='#333333', linestyle=':', linewidth=0.5, alpha=0.2)
-                    
-                    fig_line.autofmt_xdate()
-                    
-                    st.pyplot(fig_line)
-                else:
-                    st.info("Dados insuficientes para gerar gráfico de evolução.")
-
-            else:
-                st.warning("Nenhum registro encontrado para este período.")
-
+                df_l = df_f.sort_values(by='data_obj')
+                if not df_l.empty:
+                    fig_l, ax_l = plt.subplots(figsize=(6, 2))
+                    fig_l.patch.set_facecolor('#F2F6FA')
+                    ax_l.set_facecolor('#F2F6FA')
+                    grp = df_l.groupby('data_obj')['questoes'].sum().reset_index()
+                    ax_l.plot(grp['data_obj'], grp['questoes'], marker='o', color='#0044FF', linewidth=2, markerfacecolor='#FF0000')
+                    ax_l.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m'))
+                    ax_l.tick_params(colors='#333333', rotation=45, labelsize=8)
+                    for spine in ax_l.spines.values(): spine.set_edgecolor('#333333')
+                    ax_l.grid(color='#333333', linestyle=':', alpha=0.2)
+                    st.pyplot(fig_l)
+            else: st.warning("Sem dados para o período.")
+            
             st.divider()
+            st.subheader("📜 Histórico Editável")
+            df_e = df_all.copy().sort_values(by='data_obj', ascending=False)
+            df_e['materias_str'] = df_e['materias'].apply(lambda x: ", ".join(x) if isinstance(x, list) else str(x))
+            df_e['data'] = pd.to_datetime(df_e['data']).dt.date
             
-            st.subheader("📜 Pergaminho de Registros (Editável - Todos)")
-            
-            df = pd.DataFrame(user_data['logs'])
-            if 'materias' not in df.columns: df['materias'] = [[] for _ in range(len(df))]
-            df['materias_str'] = df['materias'].apply(lambda x: ", ".join(x) if isinstance(x, list) else str(x))
-            
-            if 'data' in df.columns:
-                df['data'] = pd.to_datetime(df['data']).dt.date
-            
-            column_config = {
-                "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY", disabled=False),
-                "acordou": st.column_config.TextColumn("Acordou"), 
-                "dormiu": st.column_config.TextColumn("Dormiu"),   
-                "paginas": st.column_config.NumberColumn("Páginas", min_value=0),
-                "questoes": st.column_config.NumberColumn("Questões", min_value=0),
-                "series": st.column_config.NumberColumn("Séries", min_value=0),
-                "estudou": st.column_config.CheckboxColumn("Estudou?"),
-                "materias_str": st.column_config.TextColumn("Matérias (Texto)"),
-            }
-            
-            if 'data_obj' not in df.columns:
-                 df['data_dt'] = pd.to_datetime(df['data'])
-            
-            df = df.sort_values(by='data', ascending=False)
-            
-            edited_df = st.data_editor(
-                df[['data', 'acordou', 'dormiu', 'paginas', 'questoes', 'series', 'estudou', 'materias_str']],
-                column_config=column_config,
-                use_container_width=True,
-                num_rows="dynamic",
-                key="history_editor"
+            edited = st.data_editor(
+                df_e[['data', 'acordou', 'dormiu', 'paginas', 'questoes', 'series', 'estudou', 'materias_str']],
+                use_container_width=True, num_rows="dynamic", key="hist_ed",
+                column_config={
+                    "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
+                    "acordou": st.column_config.TextColumn("Acordou"),
+                    "dormiu": st.column_config.TextColumn("Dormiu"),
+                    "paginas": st.column_config.NumberColumn("Páginas"),
+                    "questoes": st.column_config.NumberColumn("Questões"),
+                    "series": st.column_config.NumberColumn("Séries"),
+                    "estudou": st.column_config.CheckboxColumn("Estudou?"),
+                    "materias_str": st.column_config.TextColumn("Matérias")
+                }
             )
             
-            if st.button("💾 Salvar Alterações na Tabela"):
-                new_logs = []
-                for index, row in edited_df.iterrows():
-                    mat_str = row['materias_str']
-                    mat_list = [m.strip() for m in mat_str.split(',')] if mat_str else []
+            if st.button("💾 Salvar Alterações"):
+                nl = []
+                for _, r in edited.iterrows():
+                    ms = r['materias_str']
+                    ml = [m.strip() for m in ms.split(',')] if ms else []
+                    try: pv = int(r['paginas']) if pd.notnull(r['paginas']) else 0
+                    except: pv = 0
+                    try: qv = int(r['questoes']) if pd.notnull(r['questoes']) else 0
+                    except: qv = 0
+                    try: sv = int(r['series']) if pd.notnull(r['series']) else 0
+                    except: sv = 0
                     
-                    try: p_val = int(row['paginas']) if pd.notnull(row['paginas']) else 0
-                    except: p_val = 0
-                    try: q_val = int(row['questoes']) if pd.notnull(row['questoes']) else 0
-                    except: q_val = 0
-                    try: s_val = int(row['series']) if pd.notnull(row['series']) else 0
-                    except: s_val = 0
-
-                    entry = {
-                        "data": row['data'],
-                        "acordou": str(row['acordou']), 
-                        "dormiu": str(row['dormiu']),   
-                        "paginas": p_val,
-                        "questoes": q_val,
-                        "series": s_val,
-                        "estudou": bool(row['estudou']),
-                        "materias": mat_list
-                    }
-                    if isinstance(entry['data'], (date, datetime)):
-                        entry['data'] = entry['data'].strftime("%Y-%m-%d")
-                    new_logs.append(entry)
+                    d_val = r['data']
+                    if isinstance(d_val, (date, datetime)): d_val = d_val.strftime("%Y-%m-%d")
+                    
+                    nl.append({"data": d_val, "acordou": str(r['acordou']), "dormiu": str(r['dormiu']), "paginas": pv, "questoes": qv, "series": sv, "estudou": bool(r['estudou']), "materias": ml})
                 
-                branches = 1
-                for log in sorted(new_logs, key=lambda x: x['data']):
-                    if log['estudou']: branches += 1
-                    else: branches -= 2
-                
-                user_data['logs'] = new_logs
-                user_data['tree_branches'] = branches
+                br = 1
+                for l in sorted(nl, key=lambda x: x['data']):
+                    if l['estudou']: br += 1
+                    else: br -= 2
+                user_data['logs'] = nl
+                user_data['tree_branches'] = br
                 save_current_user_data()
-                st.success("Registros atualizados!")
+                st.success("Atualizado!")
                 time.sleep(1)
                 st.rerun()
-        else:
-            st.warning("Nenhum registro encontrado.")
+        else: st.info("Sem registros.")
 
-    # ABA 3: RANKING GLOBAL
+    # ABA 3
     with current_tabs[2]:
-        st.header("🏆 Hall da Fama Espartano")
-        all_db = load_db()
-        community_data = []
-        for u_name, u_data in all_db.items():
-            if u_name == "global_alerts": continue
-            u_logs = u_data.get('logs', [])
-            tot_q = sum(l.get('questoes', 0) for l in u_logs)
-            tot_p = sum(l.get('paginas', 0) for l in u_logs)
-            u_streak = calculate_streak(u_logs)
-            patente = get_patent(tot_q)
-            total_min = 0
-            for l in u_logs:
+        st.header("🏆 Hall da Fama")
+        db = load_db()
+        c_data = []
+        for u, d in db.items():
+            if u == "global_alerts": continue
+            qs = sum(l.get('questoes', 0) for l in d.get('logs', []))
+            pg = sum(l.get('paginas', 0) for l in d.get('logs', []))
+            stk = calculate_streak(d.get('logs', []))
+            tm = 0
+            for l in d.get('logs', []):
                 for m in l.get('materias', []):
-                    if '-' in m: total_min += parse_time_str_to_min(m.split('-', 1)[0])
-            community_data.append({
-                "Espartano": u_name, "Patente": patente, "Questões": tot_q,
-                "Páginas": tot_p, "Fogo (Dias)": u_streak, "Tempo Total (h)": round(total_min / 60, 1)
-            })
+                    if '-' in m: tm += parse_time_str_to_min(m.split('-', 1)[0])
+            c_data.append({"Espartano": u, "Patente": get_patent(qs), "Questões": qs, "Páginas": pg, "Fogo": stk, "Horas": round(tm/60, 1)})
+        
+        if c_data:
+            cdf = pd.DataFrame(c_data).sort_values(by="Questões", ascending=False).reset_index(drop=True)
+            cdf.index += 1
             
-        if community_data:
-            df_comm = pd.DataFrame(community_data)
-            df_comm = df_comm.sort_values(by="Questões", ascending=False).reset_index(drop=True)
-            df_comm.index += 1 
-            df_comm.index.name = "Rank"
-            
-            top_users = df_comm.head(3)
-            if not top_users.empty:
-                cols = st.columns([1, 1, 1])
-                if len(top_users) >= 2:
-                    with cols[0]: st.markdown(f"<div class='podium-silver'><h2>🥈</h2><h3>{top_users.iloc[1]['Espartano']}</h3><p>{top_users.iloc[1]['Questões']} Questões</p></div>", unsafe_allow_html=True)
-                if len(top_users) >= 1:
-                    with cols[1]: st.markdown(f"<div class='podium-gold'><h1>🥇</h1><h2>{top_users.iloc[0]['Espartano']}</h2><p>{top_users.iloc[0]['Questões']} Questões</p></div>", unsafe_allow_html=True)
-                if len(top_users) >= 3:
-                    with cols[2]: st.markdown(f"<div class='podium-bronze'><h2>🥉</h2><h3>{top_users.iloc[2]['Espartano']}</h3><p>{top_users.iloc[2]['Questões']} Questões</p></div>", unsafe_allow_html=True)
+            top = cdf.head(3)
+            if not top.empty:
+                c = st.columns(3)
+                if len(top) >= 2: c[0].markdown(f"<div class='podium-silver'><h2>🥈</h2><h3>{top.iloc[1]['Espartano']}</h3><p>{top.iloc[1]['Questões']} Questões</p></div>", unsafe_allow_html=True)
+                if len(top) >= 1: c[1].markdown(f"<div class='podium-gold'><h1>🥇</h1><h2>{top.iloc[0]['Espartano']}</h2><p>{top.iloc[0]['Questões']} Questões</p></div>", unsafe_allow_html=True)
+                if len(top) >= 3: c[2].markdown(f"<div class='podium-bronze'><h2>🥉</h2><h3>{top.iloc[2]['Espartano']}</h3><p>{top.iloc[2]['Questões']} Questões</p></div>", unsafe_allow_html=True)
             
             st.divider()
-            st.dataframe(df_comm.style.apply(lambda x: ['background-color: #5C4033; color: white']*len(x) if x['Espartano']==user else ['']*len(x), axis=1), use_container_width=True)
-        else:
-            st.info("Nenhum dado comunitário disponível.")
+            st.dataframe(cdf.style.apply(lambda r: ['background-color: #5C4033; color: white']*len(r) if r['Espartano']==user else ['']*len(r), axis=1), use_container_width=True)
 
-    # ABA 4: ALERTAS DO MENTOR
+    # ABA 4
     with current_tabs[3]:
         st.header("📢 Alertas do Mentor")
         db = load_db()
         if "global_alerts" not in db: db["global_alerts"] = []
         
-        col_global, col_priv = st.columns([1, 1])
-        
-        with col_global:
-            st.subheader("🌍 Mural de Avisos Globais")
+        c_gl, c_pr = st.columns(2)
+        with c_gl:
+            st.subheader("🌍 Mural Global")
             if user == ADMIN_USER:
-                with st.expander("📝 Escrever Novo Alerta Global", expanded=False):
-                    with st.form("new_alert_form"):
-                        new_alert_text = st.text_area("Mensagem para todos:", height=80)
-                        if st.form_submit_button("📢 Publicar Aviso") and new_alert_text.strip():
-                            alert_obj = {"id": str(datetime.now().timestamp()), "date": datetime.now().strftime("%d/%m/%Y %H:%M"), "text": new_alert_text, "author": user}
-                            db["global_alerts"].insert(0, alert_obj)
-                            save_db(db)
-                            st.success("Publicado!")
-                            st.rerun()
+                with st.expander("Novo Alerta"):
+                    nat = st.text_area("Texto:")
+                    if st.button("Publicar"):
+                        db["global_alerts"].insert(0, {"id": str(time.time()), "date": datetime.now().strftime("%d/%m %H:%M"), "text": nat, "author": user})
+                        save_db(db)
+                        st.rerun()
             
-            alerts = db.get("global_alerts", [])
-            if not alerts: st.info("Nenhum alerta global.")
+            alts = db.get("global_alerts", [])
+            if not alts: st.info("Vazio.")
             else:
-                for alert in alerts:
-                    st.markdown(f"<div class='mod-message' style='margin-bottom: 10px; padding: 10px;'><div style='font-size: 0.7em; color: #D4AF37;'>📅 {alert.get('date')}</div><div style='white-space: pre-wrap;'>{alert.get('text')}</div></div>", unsafe_allow_html=True)
-                    if user == ADMIN_USER and st.button(f"🗑️ Apagar", key=f"del_{alert.get('id')}"):
-                        db["global_alerts"].remove(alert)
+                for a in alts:
+                    st.markdown(f"<div class='mod-message'><div style='font-size:0.7em; color:#D4AF37;'>{a['date']}</div><div>{a['text']}</div></div>", unsafe_allow_html=True)
+                    if user == ADMIN_USER and st.button("🗑️", key=a['id']):
+                        db["global_alerts"].remove(a)
                         save_db(db)
                         st.rerun()
 
-        with col_priv:
-            st.subheader("📨 Mensagens Individuais")
+        with c_pr:
+            st.subheader("📨 Mensagens Privadas")
             if user == ADMIN_USER:
-                st.markdown("---")
-                st.markdown("**Enviar Mensagem Privada**")
-                all_users = [k for k in db.keys() if k != "global_alerts" and k != ADMIN_USER]
-                target_msg_user = st.selectbox("Destinatário:", all_users, key="msg_target")
-                current_msg = db[target_msg_user].get('mod_message', '')
-                if current_msg: st.warning(f"⚠️ Este usuário já tem uma mensagem ativa: '{current_msg}'")
-                new_priv_msg = st.text_area("Mensagem Privada:", key="priv_txt")
-                if st.button("Enviar/Atualizar Mensagem"):
-                    db[target_msg_user]['mod_message'] = new_priv_msg
-                    save_db(db)
-                    st.success(f"Mensagem enviada para {target_msg_user}!")
-                    st.rerun()
-                
-                st.markdown("---")
-                st.markdown("**Gerenciar Mensagens Ativas**")
-                users_with_msg = [u for u in all_users if db[u].get('mod_message')]
-                if not users_with_msg: st.caption("Nenhum usuário possui mensagens pendentes.")
-                else:
-                    for u_msg in users_with_msg:
-                        with st.container():
-                            st.markdown(f"**{u_msg}:** {db[u_msg]['mod_message']}")
-                            if st.button(f"Apagar Msg de {u_msg}", key=f"del_msg_{u_msg}"):
-                                db[u_msg]['mod_message'] = ""
-                                save_db(db)
-                                st.rerun()
-                            st.divider()
+                st.markdown("**Enviar/Gerenciar**")
+                usrs = [k for k in db.keys() if k not in ["global_alerts", ADMIN_USER]]
+                tgt = st.selectbox("Para:", usrs, key="mt")
+                if tgt:
+                    curr = db[tgt].get('mod_message', '')
+                    if curr: st.warning(f"Atual: {curr}")
+                    new_m = st.text_area("Msg:")
+                    if st.button("Enviar"):
+                        db[tgt]['mod_message'] = new_m
+                        save_db(db)
+                        st.success("Enviado!")
+                    
+                    if curr and st.button("Apagar Msg Atual"):
+                        db[tgt]['mod_message'] = ""
+                        save_db(db)
+                        st.rerun()
             else:
-                my_msg = user_data.get('mod_message', '')
-                if my_msg: st.markdown(f"<div class='private-message'><h3 style='color: #D4AF37; margin-top:0;'>⚠️ MENSAGEM DO MENTOR</h3><p style='font-size: 1.1em;'>{my_msg}</p></div>", unsafe_allow_html=True)
-                else: st.info("Você não tem mensagens privadas novas.")
+                mm = user_data.get('mod_message', '')
+                if mm: st.markdown(f"<div class='private-message'><h3>⚠️ MENSAGEM</h3>{mm}</div>", unsafe_allow_html=True)
+                else: st.info("Sem mensagens novas.")
 
     # ABA 5: AGENDA DE GUERRA (NOVA)
     with current_tabs[4]:
@@ -984,13 +726,13 @@ def main_app():
             st.subheader("Plano de Batalha")
             
             # Seletor de Data (Default: Amanhã)
-            plan_date = st.date_input("Para qual dia você está planejando?", value=date.today() + timedelta(days=1))
+            plan_date = st.date_input("Para qual dia você está planejando?", value=date.today() + timedelta(days=1), format="DD/MM/YYYY")
             plan_key = plan_date.strftime("%Y-%m-%d")
             
             # Carrega agenda existente se houver
             current_plan = user_data['agendas'].get(plan_key, "")
             
-            new_plan_text = st.text_area("Objetivos e Estratégia:", value=current_plan, height=200, placeholder="Ex: 1. Ler Cap. 4 de Constitucional\n2. Fazer 30 questões de Penal\n3. Revisar súmulas...")
+            new_plan_text = st.text_area("Objetivos e Estratégia:", value=current_plan, height=200, placeholder="Ex. Fazer 2 cadernos do TEC de Constitucional e 1 de Penal.")
             
             if st.button("💾 Salvar Planejamento"):
                 if new_plan_text.strip():
@@ -1062,64 +804,58 @@ def main_app():
                 st.balloons()
                 st.success("Disciplina Perfeita! Um verdadeiro Espartano!")
 
-    # ABA ADMIN (Moderação)
+    # ABA 6 (Moderação)
     if user == ADMIN_USER:
         with current_tabs[5]:
-            st.header("🛡️ Central de Comando - Moderação")
-            st.markdown("---")
-            col_add, col_del = st.columns(2)
-            with col_add:
-                st.subheader("✨ Incluir Novo Espartano")
-                with st.form("create_user_form"):
-                    new_u = st.text_input("Nome do Usuário")
-                    new_p = st.text_input("Senha", type="password")
-                    if st.form_submit_button("Criar Conta"):
+            st.header("🛡️ Moderação")
+            ca, cd = st.columns(2)
+            with ca:
+                st.subheader("Recrutar")
+                with st.form("new_usr"):
+                    nu = st.text_input("User")
+                    np = st.text_input("Pass", type="password")
+                    if st.form_submit_button("Criar"):
                         db = load_db()
-                        if new_u and new_p:
-                            if new_u not in db:
-                                db[new_u] = {"password": new_p, "logs": [], "agendas": {}, "tree_branches": 1, "created_at": str(datetime.now()), "mod_message": ""}
-                                save_db(db)
-                                st.success(f"Usuário '{new_u}' recrutado com sucesso!")
-                                time.sleep(1)
-                                st.rerun()
-                            else: st.error("Este nome de usuário já existe.")
-                        else: st.warning("Preencha nome e senha.")
-            with col_del:
-                st.subheader("💀 Excluir Espartano")
-                db = load_db()
-                users_list = [u for u in db.keys() if u != "global_alerts" and u != ADMIN_USER]
-                if users_list:
-                    target_del = st.selectbox("Selecione o usuário para banir:", users_list)
-                    st.warning(f"Atenção: A exclusão de **{target_del}** é irreversível.")
-                    if st.button("Confirmar Exclusão 🗑️"):
-                        if target_del in db:
-                            del db[target_del]
+                        if nu not in db:
+                            db[nu] = {"password": np, "logs": [], "tree_branches": 1, "created_at": str(datetime.now()), "mod_message": ""}
                             save_db(db)
-                            st.success(f"Usuário '{target_del}' foi banido de Esparta.")
-                            time.sleep(1)
-                            st.rerun()
-                else: st.info("Não há outros usuários para excluir.")
+                            st.success("Criado!")
+                        else: st.error("Já existe.")
+            
+            with cd:
+                st.subheader("Banir")
+                db = load_db()
+                usrs = [u for u in db.keys() if u not in ["global_alerts", ADMIN_USER]]
+                if usrs:
+                    target = st.selectbox("Alvo:", usrs)
+                    if st.button("Banir"):
+                        del db[target]
+                        save_db(db)
+                        st.success("Banido!")
+                        time.sleep(1)
+                        st.rerun()
+            
             st.divider()
-            st.markdown("### 🔧 Reconstrução Histórica (Resgate)")
-            st.warning("Use para adicionar registros retroativos perdidos para qualquer usuário.")
-            db_rec = load_db()
-            all_users_rec = [k for k in db_rec.keys() if k != "global_alerts" and k != ADMIN_USER]
-            if all_users_rec:
-                target_rec_user = st.selectbox("Usuário Alvo:", all_users_rec, key="rec_target")
-                with st.form("rebuild_data_form_mod"):
-                    r_date = st.date_input("Data Antiga", value=date.today())
+            st.subheader("🔧 Reconstrução de Histórico")
+            rec_u = st.selectbox("Usuário:", usrs, key="ru")
+            if rec_u:
+                with st.form("rec_form"):
+                    rd = st.date_input("Data Antiga", value=date.today())
                     c1, c2, c3 = st.columns(3)
-                    with c1: r_pag = st.number_input("Páginas", min_value=0)
-                    with c2: r_que = st.number_input("Questões", min_value=0)
-                    with c3: r_ser = st.number_input("Séries", min_value=0)
-                    if st.form_submit_button("Adicionar ao Histórico"):
-                        new_entry = {"data": r_date.strftime("%Y-%m-%d"), "acordou": "00:00", "dormiu": "00:00", "paginas": r_pag, "questoes": r_que, "series": r_ser, "estudou": True, "materias": ["Recuperado pelo Admin"]}
-                        db_rec[target_rec_user]['logs'].append(new_entry)
-                        db_rec[target_rec_user]['tree_branches'] += 1
-                        save_db(db_rec)
-                        st.success(f"Dados adicionados para {target_rec_user}!")
+                    rp = c1.number_input("Páginas", min_value=0)
+                    rq = c2.number_input("Questões", min_value=0)
+                    rs = c3.number_input("Séries", min_value=0)
+                    if st.form_submit_button("Adicionar"):
+                        db = load_db()
+                        db[rec_u]['logs'].append({
+                            "data": rd.strftime("%Y-%m-%d"), "acordou": "00:00", "dormiu": "00:00",
+                            "paginas": rp, "questoes": rq, "series": rs, "estudou": True, "materias": ["Recuperado Admin"]
+                        })
+                        db[rec_u]['tree_branches'] += 1
+                        save_db(db)
+                        st.success("Adicionado!")
 
-# --- CONTROLE DE FLUXO LOGIN ---
+# --- EXECUÇÃO ---
 if 'user' not in st.session_state:
     login_page()
 else:
