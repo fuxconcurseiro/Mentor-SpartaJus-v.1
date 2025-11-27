@@ -181,22 +181,31 @@ ensure_users_exist()
 # --- ESTILOS CSS ---
 st.markdown("""
     <style>
-    /* Esconde o menu principal e rodapé */
+    /* Elementos que queremos esconder totalmente */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    
-    /* Esconde a barra de ferramentas superior (onde fica o Running), mas NÃO o header inteiro */
-    [data-testid="stToolbar"] {visibility: hidden;}
-    
-    /* Esconde a decoração colorida no topo (a barra arco-iris/vermelha) */
     [data-testid="stDecoration"] {visibility: hidden;}
     
-    /* Garante que o botão de expandir a sidebar (chevron) seja visível e tenha cor de destaque */
-    [data-testid="stSidebarCollapsedControl"] {
+    /* Barra de ferramentas (menu de 3 pontos) - Opcional: comente se quiser ver */
+    [data-testid="stToolbar"] {visibility: hidden;}
+    
+    /* HEADER: Deixamos transparente para nao bloquear a visao, mas VISIVEL para que os botoes funcionem */
+    [data-testid="stHeader"] {
+        background-color: rgba(0,0,0,0);
         visibility: visible;
-        color: #D4AF37 !important; /* Dourado para ser visto no fundo escuro */
+    }
+
+    /* BOTÃO DA SIDEBAR (CHEVRON): Forçamos a visibilidade e estilizamos */
+    [data-testid="stSidebarCollapsedControl"] {
+        visibility: visible !important;
+        display: block !important;
+        color: #D4AF37 !important; /* Dourado */
+        background-color: rgba(74, 90, 106, 0.3); /* Fundo sutil para garantir contraste */
+        border-radius: 5px;
+        z-index: 100000; /* Garante que fique acima de tudo */
     }
     
+    /* Estilos Gerais do App */
     .stApp { background-color: #708090; color: #C2D5ED; }
     .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
     
@@ -304,16 +313,20 @@ def generate_tree_svg(branches):
             <text x="50" y="70" font-size="5" text-anchor="middle" fill="#C2D5ED">A árvore secou...</text>
         </svg>
         """
+    
     leaves_svg = ""
     random.seed(42)
     trunk_h = min(30 + (branches * 0.5), 60)
     trunk_y = 100 - trunk_h
     count = min(max(1, branches), 150)
+    
     for i in range(count):
         cx = 50 + random.randint(-20 - int(branches/2), 20 + int(branches/2))
         cy = trunk_y + random.randint(-20 - int(branches/2), 10)
         r = random.randint(3, 6)
-        leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="#047a0a" opacity="0.9" />'
+        color = "#047a0a" # Verde
+        leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}" opacity="0.9" />'
+
     return f"""
     <svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
         <rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />
@@ -484,7 +497,7 @@ def main_app():
         star_html = "".join(["🟡"]*g_stars + ["⚪"]*s_stars + ["🟤"]*b_stars) or "<span style='color:#a0b0c0'>Sem estrelas</span>"
         st.markdown(f"<div class='metric-card'><h4>⭐ Estrelas de Leitura</h4><div class='star-container'>{star_html}</div><p style='font-size: 0.8em; margin-top: 5px;'>Total Páginas: {total_pages}</p></div>", unsafe_allow_html=True)
 
-    tabs = ["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor", "📅 Agenda de Guerra"]
+    tabs = ["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor", "📅 Agenda de Guerra", "🤖 Oráculo IA"]
     if user == ADMIN_USER: tabs.append("🛡️ Moderação")
     current_tabs = st.tabs(tabs)
 
@@ -499,7 +512,7 @@ def main_app():
         with col_form:
             st.subheader("📝 Registro de Batalha")
             with st.form("daily_log"):
-                d_log = st.date_input("Data", value=date.today(), format="DD/MM/YYYY")
+                date_log = st.date_input("Data da Batalha", value=date.today(), format="DD/MM/YYYY")
                 cc1, cc2 = st.columns(2)
                 with cc1: 
                     wt = st.text_input("Acordou (Ex: 08:00)", value="06:00")
@@ -664,6 +677,8 @@ def main_app():
             
             st.divider()
             st.dataframe(cdf.style.apply(lambda r: ['background-color: #5C4033; color: white']*len(r) if r['Espartano']==user else ['']*len(r), axis=1), use_container_width=True)
+        else:
+            st.info("Nenhum dado comunitário disponível.")
 
     # ABA 4
     with current_tabs[3]:
@@ -671,7 +686,8 @@ def main_app():
         db = load_db()
         if "global_alerts" not in db: db["global_alerts"] = []
         
-        c_gl, c_pr = st.columns(2)
+        c_gl, c_pr = st.columns([1, 1])
+        
         with c_gl:
             st.subheader("🌍 Mural Global")
             if user == ADMIN_USER:
@@ -716,7 +732,7 @@ def main_app():
                 if mm: st.markdown(f"<div class='private-message'><h3>⚠️ MENSAGEM</h3>{mm}</div>", unsafe_allow_html=True)
                 else: st.info("Sem mensagens novas.")
 
-    # ABA 5: AGENDA DE GUERRA (NOVA)
+    # ABA 5: AGENDA DE GUERRA
     with current_tabs[4]:
         st.header("📅 Agenda & Metas")
         
@@ -725,11 +741,10 @@ def main_app():
         with c_plan:
             st.subheader("Plano de Batalha")
             
-            # Seletor de Data (Default: Amanhã)
+            # Seletor de Data com formato DD/MM/YYYY
             plan_date = st.date_input("Para qual dia você está planejando?", value=date.today() + timedelta(days=1), format="DD/MM/YYYY")
             plan_key = plan_date.strftime("%Y-%m-%d")
             
-            # Carrega agenda existente se houver
             current_plan = user_data['agendas'].get(plan_key, "")
             
             new_plan_text = st.text_area("Objetivos e Estratégia:", value=current_plan, height=200, placeholder="Ex. Fazer 2 cadernos do TEC de Constitucional e 1 de Penal.")
@@ -739,7 +754,6 @@ def main_app():
                     user_data['agendas'][plan_key] = new_plan_text
                     st.success(f"Agenda para {plan_date.strftime('%d/%m')} salva com honra!")
                 else:
-                    # Se apagar o texto, remove a entrada
                     if plan_key in user_data['agendas']:
                         del user_data['agendas'][plan_key]
                         st.info("Planejamento removido.")
@@ -749,27 +763,21 @@ def main_app():
         with c_stats:
             st.subheader("Disciplina Mensal")
             
-            # Lógica do Calendário Visual
             today = date.today()
             current_month = today.month
             current_year = today.year
             
-            # Dias do mês corrente
             num_days = calendar.monthrange(current_year, current_month)[1]
             days_planned = 0
             
             st.markdown(f"**{calendar.month_name[current_month]} {current_year}**")
             
-            # Grid do Calendário (CSS Grid like via columns)
             cols = st.columns(7)
             days_abbrev = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
             for i, d_name in enumerate(days_abbrev):
                 cols[i].markdown(f"<div style='text-align:center; font-size:0.8em; color:#a0b0c0;'>{d_name}</div>", unsafe_allow_html=True)
             
-            # Preenchimento dos dias
             month_start_weekday = date(current_year, current_month, 1).weekday()
-            
-            # Espaços vazios antes do dia 1
             cal_html_grid = []
             for _ in range(month_start_weekday):
                 cal_html_grid.append(f"<div class='cal-day empty'></div>")
@@ -788,7 +796,6 @@ def main_app():
                 
                 cal_html_grid.append(f"<div class='{style_class}'>{d}<br>{icon}</div>")
             
-            # Renderizar grid (7 colunas)
             for i in range(0, len(cal_html_grid), 7):
                 row_cols = st.columns(7)
                 for j in range(7):
@@ -796,7 +803,6 @@ def main_app():
                         row_cols[j].markdown(cal_html_grid[i+j], unsafe_allow_html=True)
             
             st.divider()
-            # Métricas
             st.metric("Dias Planejados", f"{days_planned} / {num_days}")
             if days_planned == 0:
                 st.warning("Ainda sem planos este mês. Comece agora!")
@@ -804,9 +810,39 @@ def main_app():
                 st.balloons()
                 st.success("Disciplina Perfeita! Um verdadeiro Espartano!")
 
-    # ABA 6 (Moderação)
+    # ABA 6 (Oráculo)
+    with current_tabs[5]:
+        st.subheader("🤖 Oráculo SpartaJus")
+        if not st.session_state.api_key: st.warning("Chave API não configurada.")
+        else:
+            if 'chat_history' not in st.session_state: st.session_state.chat_history = []
+            for m in st.session_state.chat_history:
+                with st.chat_message(m["role"]): st.write(m["content"])
+            
+            if p := st.chat_input("Consulte o Oráculo..."):
+                st.session_state.chat_history.append({"role": "user", "content": p})
+                with st.chat_message("user"): st.write(p)
+                with st.chat_message("assistant"):
+                    with st.spinner("Pensando..."):
+                        try:
+                            genai.configure(api_key=st.session_state.api_key)
+                            try:
+                                model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=ORACLE_SYSTEM_PROMPT)
+                                res = model.generate_content(p)
+                            except:
+                                model = genai.GenerativeModel('gemini-pro', system_instruction=ORACLE_SYSTEM_PROMPT)
+                                res = model.generate_content(p)
+                            
+                            r_text = remove_markdown(res.text)
+                            st.write(r_text)
+                            st.session_state.chat_history.append({"role": "assistant", "content": r_text})
+                        except Exception as e:
+                            if "429" in str(e): st.warning("Muitas requisições. Tente em breve.")
+                            else: st.error(f"Erro: {e}")
+
+    # ABA 7 (Moderação)
     if user == ADMIN_USER:
-        with current_tabs[5]:
+        with current_tabs[6]:
             st.header("🛡️ Moderação")
             ca, cd = st.columns(2)
             with ca:
@@ -817,7 +853,7 @@ def main_app():
                     if st.form_submit_button("Criar"):
                         db = load_db()
                         if nu not in db:
-                            db[nu] = {"password": np, "logs": [], "tree_branches": 1, "created_at": str(datetime.now()), "mod_message": ""}
+                            db[nu] = {"password": np, "logs": [], "agendas": {}, "tree_branches": 1, "created_at": str(datetime.now()), "mod_message": ""}
                             save_db(db)
                             st.success("Criado!")
                         else: st.error("Já existe.")
