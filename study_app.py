@@ -25,7 +25,7 @@ st.set_page_config(
     page_title="Mentor SpartaJus",
     page_icon="🏛️",
     layout="wide",
-    initial_sidebar_state="expanded"  # Força iniciar aberta
+    initial_sidebar_state="expanded"
 )
 
 # --- CONSTANTES GLOBAIS ---
@@ -181,21 +181,9 @@ ensure_users_exist()
 # --- ESTILOS CSS ---
 st.markdown("""
     <style>
-    /* ESTRATÉGIA BARRA LATERAL FIXA:
-       1. initial_sidebar_state="expanded" (no config python) garante que abra.
-       2. O CSS abaixo ESCONDE o botão de fechar/abrir, travando-a no estado aberto.
-    */
-    [data-testid="stSidebarCollapsedControl"] {
-        display: none !important;
-    }
-
-    /* Esconde menu e footer padrão */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    [data-testid="stDecoration"] {visibility: hidden;}
-    [data-testid="stToolbar"] {visibility: hidden;}
+    /* REMOVIDOS OS COMANDOS QUE OCULTAVAM O MENU/HEADER PARA RESTAURAR A SIDEBAR */
     
-    /* Estilos Gerais */
+    /* Estilos Gerais do App */
     .stApp { background-color: #708090; color: #C2D5ED; }
     .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #C2D5ED !important; }
     
@@ -303,17 +291,20 @@ def generate_tree_svg(branches):
             <text x="50" y="70" font-size="5" text-anchor="middle" fill="#C2D5ED">A árvore secou...</text>
         </svg>
         """
+    
     leaves_svg = ""
     random.seed(42)
     trunk_h = min(30 + (branches * 0.5), 60)
     trunk_y = 100 - trunk_h
     count = min(max(1, branches), 150)
+    
     for i in range(count):
         cx = 50 + random.randint(-20 - int(branches/2), 20 + int(branches/2))
         cy = trunk_y + random.randint(-20 - int(branches/2), 10)
         r = random.randint(3, 6)
         color = "#047a0a" # Verde
         leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}" opacity="0.9" />'
+
     return f"""
     <svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
         <rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />
