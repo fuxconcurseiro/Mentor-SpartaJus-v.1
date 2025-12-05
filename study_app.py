@@ -322,14 +322,21 @@ def generate_tree_svg(branches):
     # Usando seed local para consistência visual sem afetar random global
     rng = random.Random(42) 
     trunk_h = min(30 + (branches * 0.5), 60)
-    trunk_y = 100 - trunk_h
+    # Ajuste: Subimos a base do tronco para 85 para dar espaço ao texto embaixo
+    trunk_y = 85 - trunk_h
     count = min(max(1, branches), 150)
     for i in range(count):
         cx = 50 + rng.randint(-20 - int(branches/2), 20 + int(branches/2))
         cy = trunk_y + rng.randint(-20 - int(branches/2), 10)
         r = rng.randint(3, 6)
         leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="#228B22" opacity="0.8" />'
-    return f"""<svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />{leaves_svg}<text x="50" y="95" font-size="4" text-anchor="middle" fill="#555">Ramos Vivos: {branches}</text></svg>"""
+    
+    # Ajuste: Texto maior (size 8), negrito, cor temática e posicionado abaixo da árvore (y=96)
+    return f"""<svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />
+        {leaves_svg}
+        <text x="50" y="96" font-size="8" font-weight="bold" text-anchor="middle" fill="#8B4513">Ramos Vivos: {branches}</text>
+    </svg>"""
 
 def get_patent(total_questions):
     patentes = ["O Maltrapilho (fase iniciante)", "O Comum (fase q banca te humilha)", "O Cadastrado (fase mediana)", "O Altivo (fase da perseverança)", "O Espartano (fase da autonomia)"]
