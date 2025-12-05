@@ -322,8 +322,8 @@ def generate_tree_svg(branches):
     # Usando seed local para consistência visual sem afetar random global
     rng = random.Random(42) 
     trunk_h = min(30 + (branches * 0.5), 60)
-    # Ajuste: Subimos a base do tronco para 85 para dar espaço ao texto embaixo
-    trunk_y = 85 - trunk_h
+    # Revertendo: Base do tronco volta para 100 (sem texto embaixo dentro do SVG)
+    trunk_y = 100 - trunk_h
     count = min(max(1, branches), 150)
     for i in range(count):
         cx = 50 + rng.randint(-20 - int(branches/2), 20 + int(branches/2))
@@ -331,12 +331,8 @@ def generate_tree_svg(branches):
         r = rng.randint(3, 6)
         leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="#228B22" opacity="0.8" />'
     
-    # Ajuste: Texto maior (size 8), negrito, cor temática e posicionado abaixo da árvore (y=96)
-    return f"""<svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />
-        {leaves_svg}
-        <text x="50" y="96" font-size="8" font-weight="bold" text-anchor="middle" fill="#8B4513">Ramos Vivos: {branches}</text>
-    </svg>"""
+    # Revertendo: Removemos o texto de dentro do SVG
+    return f"""<svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />{leaves_svg}</svg>"""
 
 def get_patent(total_questions):
     patentes = ["O Maltrapilho (fase iniciante)", "O Comum (fase q banca te humilha)", "O Cadastrado (fase mediana)", "O Altivo (fase da perseverança)", "O Espartano (fase da autonomia)"]
@@ -569,6 +565,9 @@ def main_app():
         with c_tree:
             st.subheader("Árvore da Constância")
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
+            # Novo local do texto: Fora do SVG, destacado e centralizado
+            st.markdown(f"<h2 style='text-align: center; color: #8B4513; margin-top: 10px;'>🌱 Ramos Vivos: {user_data['tree_branches']}</h2>", unsafe_allow_html=True)
+            
             if user_data.get('mod_message'):
                 st.markdown(f"<div class='private-message'><strong>📨 MENSAGEM DO MENTOR:</strong><br>{user_data['mod_message']}</div>", unsafe_allow_html=True)
         
