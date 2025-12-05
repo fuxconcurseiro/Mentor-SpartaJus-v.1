@@ -160,7 +160,7 @@ def ensure_users_exist():
 
 ensure_users_exist()
 
-# --- ESTILOS CSS ---
+# --- ESTILOS CSS (GHOSTWHITE & NAVAJOWHITE) ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -311,12 +311,9 @@ def calculate_streak(logs):
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
-    if os.path.exists(LOGO_FILE):
-        with c2: 
-            st.image(LOGO_FILE)
+    if os.path.exists(LOGO_FILE): with c2: st.image(LOGO_FILE)
     st.title("🏛️ Mentor SpartaJus")
     st.markdown("<h3 style='text-align:center; color:#8B4513;'>Login</h3>", unsafe_allow_html=True)
-    
     tab1, tab2, tab3 = st.tabs(["🔑 Entrar", "📝 Registrar", "🔄 Alterar Senha"])
     with tab1:
         u = st.text_input("Usuário", key="l_u").strip()
@@ -362,6 +359,11 @@ def save_current_user_data():
 def main_app():
     user = st.session_state['user']
     user_data = st.session_state['user_data']
+    
+    # DEFINIÇÃO DAS VARIÁVEIS DE ADMIN (REINSERIDA PARA CORRIGIR O ERRO)
+    is_real_admin = (user == ADMIN_USER)
+    is_admin_mode = ('admin_user' in st.session_state and st.session_state['admin_user'] == ADMIN_USER)
+    
     if 'subjects_list' not in user_data: user_data['subjects_list'] = ["Constitucional", "Administrativo", "Penal", "Civil", "Processo Civil"]
     
     if 'logs' in user_data:
@@ -395,6 +397,28 @@ def main_app():
             with open(DB_FILE, "r", encoding="utf-8") as f:
                 st.download_button("Baixar Dados (JSON)", f, f"backup_{get_now_br().strftime('%Y%m%d_%H%M')}.json", "application/json")
         
+        st.divider()
+        
+        # PAINEL DO MODERADOR (USANDO AS VARIÁVEIS REINSERIDAS)
+        if is_real_admin or is_admin_mode:
+            with st.expander("🛡️ PAINEL DO MODERADOR", expanded=True):
+                st.caption("Área restrita de comando")
+                if is_real_admin:
+                    db = load_db()
+                    all_users = [k for k in db.keys() if k != "global_alerts"]
+                    target_user = st.selectbox("Selecione o Espartano:", all_users)
+                    if st.button("👁️ Acessar Dashboard Selecionado"):
+                        st.session_state['admin_user'] = ADMIN_USER
+                        st.session_state['user'] = target_user
+                        st.session_state['user_data'] = db[target_user]
+                        st.rerun()
+                elif is_admin_mode:
+                    st.warning(f"Visualizando: {user}")
+                    if st.button("⬅️ Voltar ao Admin"):
+                        st.session_state['user'] = ADMIN_USER
+                        st.session_state['user_data'] = load_db()[ADMIN_USER]
+                        st.rerun()
+
         st.divider()
         with st.expander("📚 Gerenciar Matérias"):
             new_sub = st.text_input("Nova Matéria:")
@@ -634,25 +658,6 @@ def main_app():
     if user == ADMIN_USER:
         with tabs[6]:
             st.header("🛡️ Moderação")
-            
-            # Sub-aba: Gerenciar Usuários
-            if is_real_admin:
-                db = load_db()
-                all_users = [k for k in db.keys() if k != "global_alerts"]
-                target_user = st.selectbox("Selecione o Espartano:", all_users)
-                if st.button("👁️ Acessar Dashboard Selecionado"):
-                    st.session_state['admin_user'] = ADMIN_USER
-                    st.session_state['user'] = target_user
-                    st.session_state['user_data'] = db[target_user]
-                    st.rerun()
-            elif is_admin_mode:
-                st.warning(f"Visualizando: {user}")
-                if st.button("⬅️ Voltar ao Admin"):
-                    st.session_state['user'] = ADMIN_USER
-                    st.session_state['user_data'] = load_db()[ADMIN_USER]
-                    st.rerun()
-            
-            st.divider()
             ca, cd = st.columns(2)
             with ca:
                 st.subheader("Recrutar")
@@ -662,7 +667,7 @@ def main_app():
                     if st.form_submit_button("Criar"):
                         db = load_db()
                         if nu not in db:
-                            db[nu] = {"password": np, "logs": [], "agendas": {}, "subjects_list": ["Constitucional", "Administrativo", "Penal", "Civil", "Processo Civil"], "tree_branches": 1, "created_at": str(get_now_br()), "mod_message": ""}
+                            db[nu] = {"password": np, "logs": [], "agendas": {}, "tree_branches": 1, "created_at": str(datetime.now()), "mod_message": ""}
                             save_db(db)
                             st.success("Criado!")
                         else: st.error("Já existe.")
