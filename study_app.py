@@ -175,7 +175,7 @@ st.markdown("""
         border-radius: 5px;
     }
 
-    /* CORES GERAIS - MINTCREAM */
+    /* CORES GERAIS - Alterado para MINTCREAM */
     .stApp { background-color: #F5FFFA; color: #333333; }
     .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #4A4A4A !important; }
     
@@ -379,6 +379,13 @@ def main_app():
     with st.sidebar:
         if os.path.exists(LOGO_FILE): st.image(LOGO_FILE)
         st.write(f"### Olá, {user}")
+        
+        # STATUS DO GOOGLE SHEETS
+        if SHEETS_AVAILABLE and get_google_credentials():
+            st.caption("🟢 Conectado à Nuvem (Google Sheets)")
+        else:
+            st.caption("🟠 Modo Offline (Local JSON)")
+
         st.markdown("""
         <div style='background-color: rgba(255, 255, 255, 0.5); padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #DEB887; font-size: 0.85em; color: #5C4033;'>
             <strong>🎖️ PATENTES DO SPARTAJUS:</strong><br>
@@ -454,7 +461,6 @@ def main_app():
         c_tree, c_form = st.columns([1, 1])
         with c_tree:
             st.subheader("Árvore da Constância")
-            # Correção: linha única para o SVG
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             if user_data.get('mod_message'):
                 st.markdown(f"<div class='private-message'><strong>📨 MENSAGEM DO MENTOR:</strong><br>{user_data['mod_message']}</div>", unsafe_allow_html=True)
