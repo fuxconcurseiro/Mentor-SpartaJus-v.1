@@ -311,7 +311,9 @@ def calculate_streak(logs):
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
-    if os.path.exists(LOGO_FILE): with c2: st.image(LOGO_FILE)
+    if os.path.exists(LOGO_FILE): 
+        with c2: 
+            st.image(LOGO_FILE)
     st.title("🏛️ Mentor SpartaJus")
     st.markdown("<h3 style='text-align:center; color:#8B4513;'>Login</h3>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🔑 Entrar", "📝 Registrar", "🔄 Alterar Senha"])
@@ -359,7 +361,6 @@ def save_current_user_data():
 def main_app():
     user = st.session_state['user']
     user_data = st.session_state['user_data']
-    # Definição das variáveis de admin dentro da função
     is_real_admin = (user == ADMIN_USER)
     is_admin_mode = ('admin_user' in st.session_state and st.session_state['admin_user'] == ADMIN_USER)
 
@@ -378,13 +379,6 @@ def main_app():
     with st.sidebar:
         if os.path.exists(LOGO_FILE): st.image(LOGO_FILE)
         st.write(f"### Olá, {user}")
-        
-        # Status do Google Sheets (Restaurado)
-        if SHEETS_AVAILABLE and get_google_credentials():
-            st.caption("🟢 Conectado à Nuvem (Google Sheets)")
-        else:
-            st.caption("🟠 Modo Offline (Local JSON)")
-
         st.markdown("""
         <div style='background-color: rgba(255, 255, 255, 0.5); padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #DEB887; font-size: 0.85em; color: #5C4033;'>
             <strong>🎖️ PATENTES DO SPARTAJUS:</strong><br>
@@ -418,7 +412,6 @@ def main_app():
                 save_current_user_data()
                 st.rerun()
         
-        # Painel do Moderador
         if is_real_admin or is_admin_mode:
             with st.expander("🛡️ PAINEL DO MODERADOR", expanded=True):
                 st.caption("Área restrita de comando")
