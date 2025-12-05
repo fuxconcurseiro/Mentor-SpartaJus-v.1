@@ -12,6 +12,7 @@ import base64
 import shutil
 import hashlib
 import calendar
+import colorsys # Importação necessária para gerar cores
 from contextlib import contextmanager
 
 # Tenta importar bibliotecas do Google Sheets.
@@ -240,7 +241,7 @@ st.markdown("""
     }
 
     /* INPUTS */
-    .stTextInput > div > div > input, .stNumberInput > div > div > input, .stDateInput > div > div > input, .stTimeInput > div > div > input, .stSelectbox > div > div > div, .stTextArea > div > div > textarea {
+    .stTextInput > div > div > input, .stNumberInput > div > div > input, .stDateInput > div > div > input, .stTimeInput > div > div > input, .stSelectbox > div > div > div, .stTextArea > div > div > textarea, [data-testid="stMultiSelect"] {
         background-color: #FFFFFF; color: #333333; border: 1px solid #DEB887;
     }
     ::placeholder { color: #999999 !important; }
@@ -330,6 +331,21 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- FUNÇÕES AUXILIARES OTIMIZADAS ---
+def generate_distinct_colors(n):
+    """Gera N cores distintas usando a Proporção Áurea para evitar repetição e tangência."""
+    colors = []
+    for i in range(n):
+        # Golden Angle (~0.618) garante que cada nova cor esteja o mais longe possível das anteriores no círculo cromático
+        hue = (i * 0.618033988749895) % 1.0
+        # Variação de saturação e valor para aumentar ainda mais o contraste visual
+        saturation = 0.6 + (i % 2) * 0.2  # Alterna entre 0.6 e 0.8
+        value = 0.85 - (i % 3) * 0.1      # Alterna brilho
+        
+        r, g, b = colorsys.hsv_to_rgb(hue, saturation, value)
+        # Converte para Hex
+        colors.append('#{:02x}{:02x}{:02x}'.format(int(r*255), int(g*255), int(b*255)))
+    return colors
+
 def parse_time_str_to_min(t_str):
     t_str = str(t_str).lower().replace(' ', '')
     try:
@@ -699,34 +715,101 @@ def main_app():
 
     # --- TAB 2: DASHBOARD ---
     with tabs[1]:
-        st.header("📈 Análise")
+        st.header("📈 Análise Tática")
         if user_data['logs']:
-            all_q_details = {}
-            for l in user_data['logs']:
-                dets = l.get('questoes_detalhadas', {})
-                for m, q in dets.items(): all_q_details[m] = all_q_details.get(m, 0) + q
+            # -----------------------------------
+            # FILTROS DE INTELIGÊNCIA
+            # -----------------------------------
+            st.markdown("##### 🔍 Filtros Personalizados")
             
-            st.subheader("Distribuição de Questões")
-            if all_q_details:
-                labels = list(all_q_details.keys())
-                sizes = list(all_q_details.values())
-                total = sum(sizes)
+            # Recuperar datas para limites do Date Input
+            all_dates = [datetime.strptime(l['data'], "%Y-%m-%d").date() for l in user_data['logs']]
+            min_date = min(all_dates) if all_dates else get_today_br()
+            max_date = max(all_dates) if all_dates else get_today_br()
+            
+            # Layout dos Filtros
+            c_f1, c_f2 = st.columns([1, 1])
+            
+            with c_f1:
+                # Seletor de Período (Padrão: Todo o histórico)
+                date_range = st.date_input(
+                    "Período de Análise:",
+                    value=(min_date, max_date),
+                    min_value=min_date,
+                    max_value=max_date,
+                    format="DD/MM/YYYY"
+                )
+            
+            with c_f2:
+                # Seletor de Matérias (Padrão: Todas)
+                all_subjects = user_data['subjects_list']
+                selected_subjects = st.multiselect(
+                    "Matérias de Interesse:",
+                    options=all_subjects,
+                    default=all_subjects,
+                    placeholder="Selecione as matérias..."
+                )
+
+            st.divider()
+
+            # -----------------------------------
+            # PROCESSAMENTO DOS DADOS FILTRADOS
+            # -----------------------------------
+            filtered_q_details = {}
+            filtered_total = 0
+            
+            # Validação do Range de Data (evita erro se usuário selecionar só data inicial)
+            start_d, end_d = min_date, max_date
+            if isinstance(date_range, tuple):
+                if len(date_range) == 2:
+                    start_d, end_d = date_range
+                elif len(date_range) == 1:
+                    start_d = end_d = date_range[0]
+
+            for l in user_data['logs']:
+                log_date = datetime.strptime(l['data'], "%Y-%m-%d").date()
+                
+                # Aplica Filtro de Data
+                if start_d <= log_date <= end_d:
+                    dets = l.get('questoes_detalhadas', {})
+                    for m, q in dets.items():
+                        # Aplica Filtro de Matéria
+                        if m in selected_subjects:
+                            filtered_q_details[m] = filtered_q_details.get(m, 0) + q
+                            filtered_total += q
+            
+            # -----------------------------------
+            # PLOTAGEM DO GRÁFICO
+            # -----------------------------------
+            st.subheader("Distribuição de Questões (Personalizado)")
+            if filtered_q_details:
+                labels = list(filtered_q_details.keys())
+                sizes = list(filtered_q_details.values())
                 
                 fig, ax = plt.subplots(figsize=(6, 3))
                 fig.patch.set_facecolor('white')
                 ax.set_facecolor('white')
-                colors = ['#FF6347', '#4682B4', '#32CD32', '#FFD700', '#8A2BE2', '#FF69B4', '#00CED1']
+                
+                # GERAÇÃO DINÂMICA DE CORES (Baseado apenas nas matérias filtradas)
+                colors = generate_distinct_colors(len(labels))
+                
                 wedges, _ = ax.pie(sizes, labels=None, startangle=90, colors=colors)
-                legend_labels = [f"{(s/total)*100:.1f}% - {l}" for l, s in zip(labels, sizes)]
+                legend_labels = [f"{(s/filtered_total)*100:.1f}% - {l}" for l, s in zip(labels, sizes)]
+                
                 ax.legend(wedges, legend_labels, title="Matérias", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), frameon=False)
                 ax.axis('equal')
                 
                 c1, c2, c3 = st.columns([1, 2, 1])
                 with c2: st.pyplot(fig)
-                plt.close(fig) # IMPORTANTE: Evita Memory Leak
-            else: st.info("Sem detalhes de questões.")
+                plt.close(fig) 
+            else: 
+                st.warning("⚠️ Nenhum registro encontrado para os filtros selecionados.")
             
-            st.subheader("📈 Evolução de Questões")
+            # -----------------------------------
+            # GRÁFICO DE EVOLUÇÃO (MANTIDO GERAL)
+            # -----------------------------------
+            st.divider()
+            st.subheader("📈 Evolução de Questões (Histórico Completo)")
             df_l = pd.DataFrame(user_data['logs'])
             if 'data' in df_l.columns and not df_l.empty:
                 df_l['data_obj'] = pd.to_datetime(df_l['data']).dt.date
@@ -744,7 +827,7 @@ def main_app():
                 
                 cl1, cl2, cl3 = st.columns([1, 4, 1])
                 with cl2: st.pyplot(fig_l)
-                plt.close(fig_l) # IMPORTANTE: Evita Memory Leak
+                plt.close(fig_l) 
             
             st.divider()
             st.subheader("📜 Histórico Editável")
