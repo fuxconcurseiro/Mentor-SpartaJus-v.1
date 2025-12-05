@@ -21,6 +21,8 @@ except ImportError:
     SHEETS_AVAILABLE = False
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
+# Removido o 'expanded' forçado para deixar o usuário controlar, 
+# mas o padrão será tentar abrir.
 st.set_page_config(
     page_title="Mentor SpartaJus",
     page_icon="🏛️",
@@ -38,9 +40,11 @@ SHEET_NAME = "SpartaJus_DB"
 BRT = timezone(timedelta(hours=-3))
 
 def get_now_br():
+    """Retorna o timestamp atual em Brasília"""
     return datetime.now(BRT)
 
 def get_today_br():
+    """Retorna a data de hoje em Brasília"""
     return get_now_br().date()
 
 # --- GERENCIAMENTO DE API KEY ---
@@ -158,7 +162,7 @@ def ensure_users_exist():
 
 ensure_users_exist()
 
-# --- ESTILOS CSS ---
+# --- ESTILOS CSS (GHOSTWHITE & NAVAJOWHITE) ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -309,9 +313,7 @@ def calculate_streak(logs):
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
-    if os.path.exists(LOGO_FILE): 
-        with c2: 
-            st.image(LOGO_FILE)
+    if os.path.exists(LOGO_FILE): with c2: st.image(LOGO_FILE)
     st.title("🏛️ Mentor SpartaJus")
     st.markdown("<h3 style='text-align:center; color:#8B4513;'>Login</h3>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🔑 Entrar", "📝 Registrar", "🔄 Alterar Senha"])
@@ -367,6 +369,7 @@ def main_app():
                 log['questoes_detalhadas'] = {}
 
     st.session_state.api_key = get_api_key()
+    # CORREÇÃO: Uso das variáveis abreviadas para o f-string funcionar
     total_q = sum([l.get('questoes', 0) for l in user_data['logs']])
     total_p = sum([l.get('paginas', 0) for l in user_data['logs']])
     streak = calculate_streak(user_data['logs'])
@@ -419,7 +422,8 @@ def main_app():
     """, unsafe_allow_html=True)
     
     c1, c2 = st.columns([2, 1])
-    with c1: st.markdown(f"<div class='rank-card'><h2>{user.upper()}</h2><h3>🛡️ {get_patent(total_q)}</h3><p>Total: {total_questions} | 🔥 Fogo: {streak} dias</p></div>", unsafe_allow_html=True)
+    # CORREÇÃO: Uso de total_q e streak (variáveis definidas)
+    with c1: st.markdown(f"<div class='rank-card'><h2>{user.upper()}</h2><h3>🛡️ {get_patent(total_q)}</h3><p>Total: {total_q} | 🔥 Fogo: {streak} dias</p></div>", unsafe_allow_html=True)
     with c2:
         stars = "".join(["🟡"]*get_stars(total_p)[0] + ["⚪"]*get_stars(total_p)[1] + ["🟤"]*get_stars(total_p)[2]) or "Sem estrelas"
         st.markdown(f"<div class='metric-card'><h4>⭐ Leitura</h4><div style='font-size:1.5em;'>{stars}</div><p>Páginas: {total_p}</p></div>", unsafe_allow_html=True)
@@ -630,7 +634,7 @@ def main_app():
 
     if user == ADMIN_USER:
         with tabs[6]:
-            st.header("🛡️ Moderação")
+            st.header("🛡️ Admin")
             ca, cd = st.columns(2)
             with ca:
                 st.subheader("Recrutar")
