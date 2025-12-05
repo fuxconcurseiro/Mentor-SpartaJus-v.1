@@ -267,14 +267,84 @@ st.markdown("""
     .mod-message { background-color: #FFFaf0; border-left: 5px solid #DAA520; padding: 15px; margin-top: 15px; border-radius: 8px; color: #333; border: 1px solid #EEE; }
     .private-message { background-color: #FFF0F5; border: 2px dashed #C71585; padding: 15px; margin-bottom: 20px; border-radius: 8px; color: #800000; }
 
-    /* THRONE RANKING */
-    .throne-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
-    .throne-item { width: 80%; margin: 10px 0; padding: 15px; border-radius: 8px; text-align: center; position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    /* THRONE RANKING - ESTILO IMPERIAL */
+    .throne-container { display: flex; flex-direction: column; align-items: center; width: 100%; gap: 15px; }
     
-    .rank-1 { background: linear-gradient(180deg, #FFD700 0%, #FDB931 100%); border: 3px solid #DAA520; transform: scale(1.1); z-index: 10; color: #4B3621; }
-    .rank-1::before { content: '👑'; font-size: 2em; display: block; margin-bottom: -10px;}
-    .rank-2 { background: linear-gradient(180deg, #E0E0E0 0%, #C0C0C0 100%); border: 2px solid #A9A9A9; width: 70%; color: #333; }
-    .rank-3 { background: linear-gradient(180deg, #CD7F32 0%, #A0522D 100%); border: 2px solid #8B4513; width: 60%; color: #FFF; }
+    .throne-card {
+        width: 80%;
+        max-width: 500px;
+        padding: 20px;
+        text-align: center;
+        position: relative;
+        border-radius: 15px;
+        margin-bottom: 10px;
+        transition: transform 0.2s;
+    }
+    .throne-card:hover { transform: scale(1.02); }
+
+    /* RANK 1 - Ouro & Rubi */
+    .rank-1 {
+        background: radial-gradient(circle, #FFF8DC 20%, #FFD700 100%);
+        border: 4px double #DAA520; /* Borda dupla estilo moldura */
+        box-shadow: 
+            0 0 15px rgba(255, 215, 0, 0.6), /* Brilho Dourado */
+            inset 0 0 20px rgba(139, 0, 0, 0.2); /* Profundidade */
+        color: #4B3621;
+    }
+    /* Gemas simuladas nos cantos (Rubi) */
+    .rank-1::before, .rank-1::after {
+        content: ''; position: absolute; width: 12px; height: 12px; border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #FF4500, #8B0000);
+        box-shadow: 0 0 5px #FF0000; border: 1px solid #FFD700;
+    }
+    .rank-1::before { top: 10px; left: 10px; }
+    .rank-1::after { top: 10px; right: 10px; }
+
+    /* RANK 2 - Prata & Safira */
+    .rank-2 {
+        background: radial-gradient(circle, #F8F8FF 20%, #C0C0C0 100%);
+        border: 4px double #708090;
+        box-shadow: 
+            0 0 10px rgba(192, 192, 192, 0.6),
+            inset 0 0 20px rgba(0, 0, 139, 0.1);
+        color: #333;
+    }
+    /* Gemas simuladas nos cantos (Safira) */
+    .rank-2::before, .rank-2::after {
+        content: ''; position: absolute; width: 10px; height: 10px; border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #4169E1, #00008B);
+        box-shadow: 0 0 4px #0000FF; border: 1px solid #C0C0C0;
+    }
+    .rank-2::before { top: 10px; left: 10px; }
+    .rank-2::after { top: 10px; right: 10px; }
+
+    /* RANK 3 - Bronze & Esmeralda */
+    .rank-3 {
+        background: radial-gradient(circle, #FFF5EE 20%, #CD7F32 100%);
+        border: 4px double #8B4513;
+        box-shadow: 
+            0 0 10px rgba(205, 127, 50, 0.5),
+            inset 0 0 20px rgba(0, 100, 0, 0.1);
+        color: #3E2723;
+    }
+    /* Gemas simuladas nos cantos (Esmeralda) */
+    .rank-3::before, .rank-3::after {
+        content: ''; position: absolute; width: 10px; height: 10px; border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #32CD32, #006400);
+        box-shadow: 0 0 4px #008000; border: 1px solid #CD7F32;
+    }
+    .rank-3::before { top: 10px; left: 10px; }
+    .rank-3::after { top: 10px; right: 10px; }
+
+    /* RANK COMUM */
+    .rank-common {
+        background: #FFFFFF;
+        border: 1px solid #DEB887;
+        color: #555;
+    }
+
+    .laurel-text { font-family: 'Georgia', serif; font-weight: bold; font-size: 1.2em; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .laurel-icon { font-size: 1.5em; opacity: 0.8; }
 
     .stImage img { width: 100%; mix-blend-mode: multiply; }
     
@@ -773,18 +843,66 @@ def main_app():
             ur.append({"User": u, "Q": q, "Patente": get_patent(q)})
         
         ur.sort(key=lambda x: x['Q'], reverse=True)
+        
+        # Destaque: Apenas Top 3
         st.markdown("<div class='throne-container'>", unsafe_allow_html=True)
-        for i, p in enumerate(ur):
-            cls = "rank-1" if i==0 else "rank-2" if i==1 else "rank-3" if i==2 else "throne-item"
-            mdl = "👑" if i==0 else "🥈" if i==1 else "🥉" if i==2 else f"#{i+1}"
+        for i, p in enumerate(ur[:3]):
+            rank_cls = "rank-1" if i==0 else "rank-2" if i==1 else "rank-3"
             
-            html_card = ""
-            if i > 2: 
-                html_card = f"<div style='background: #FFF; border: 1px solid #DEB887; padding: 10px; margin: 5px; border-radius: 5px; width: 80%; text-align:center; color: #555;'><strong>{i+1}. {p['User']}</strong> - {p['Q']} Questões<br><small>{p['Patente']}</small></div>"
-            else: 
-                html_card = f"<div class='{cls} throne-item'><h3>{mdl} {p['User']}</h3><p style='margin:0; font-weight:bold;'>{p['Q']} Questões</p><small>{p['Patente']}</small></div>"
+            # Elementos gráficos de coroa/medalha
+            icon = "👑" if i==0 else "🥈" if i==1 else "🥉"
+            
+            # Laureas (ramos) nas bordas do nome
+            laurel_l = "🌿"
+            laurel_r = "🌿"
+            
+            # Joias extras no HTML para o Rank 1 (visual mais rico)
+            extra_jewel = "<div style='font-size:0.8em; margin-top:5px;'>💎 ♦️ 💎</div>" if i==0 else ""
+            
+            html_card = f"""
+            <div class='throne-card {rank_cls}'>
+                <div class='laurel-text'>
+                    <span class='laurel-icon'>{laurel_l}</span>
+                    <span>{icon} {p['User']}</span>
+                    <span class='laurel-icon'>{laurel_r}</span>
+                </div>
+                {extra_jewel}
+                <hr style='border-top: 1px solid rgba(0,0,0,0.1); margin: 10px 0;'>
+                <p style='margin:0; font-weight:bold; font-size:1.1em;'>{p['Q']} Questões</p>
+                <small style='font-style:italic;'>{p['Patente']}</small>
+            </div>
+            """
             st.markdown(html_card, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
+
+        st.divider()
+        st.subheader("📜 Lista Geral de Guerreiros")
+        
+        if ur:
+            # Criação da Tabela Nominal
+            df_rank = pd.DataFrame(ur)
+            df_rank.index += 1 # Começar ranking do 1
+            df_rank.reset_index(inplace=True)
+            df_rank.columns = ['Posição', 'Guerreiro', 'Questões', 'Patente']
+            
+            st.dataframe(
+                df_rank,
+                hide_index=True,
+                use_container_width=True,
+                column_config={
+                    "Posição": st.column_config.NumberColumn("Rank", format="#%d", width="small"),
+                    "Guerreiro": st.column_config.TextColumn("Guerreiro", width="medium"),
+                    "Questões": st.column_config.ProgressColumn(
+                        "Poder de Fogo", 
+                        format="%d", 
+                        min_value=0, 
+                        max_value=max(df_rank['Questões']) if not df_rank.empty else 100
+                    ),
+                    "Patente": st.column_config.TextColumn("Patente", width="large"),
+                }
+            )
+        else:
+            st.info("O exército ainda está sendo recrutado.")
 
     # --- TAB 4: AVISOS ---
     with tabs[3]:
