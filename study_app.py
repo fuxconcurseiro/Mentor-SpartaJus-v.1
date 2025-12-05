@@ -696,7 +696,6 @@ def main_app():
             for col in ['acordou', 'dormiu']:
                 if col not in df_hist.columns: df_hist[col] = "00:00"
             if 'questoes_detalhadas' not in df_hist.columns: df_hist['questoes_detalhadas'] = [{} for _ in range(len(df_hist))]
-            if 'estudou' not in df_hist.columns: df_hist['estudou'] = False
             
             def format_details(d):
                 if isinstance(d, dict): return ", ".join([f"{k}: {v}" for k, v in d.items()])
@@ -705,7 +704,8 @@ def main_app():
             df_hist['detalhes_str'] = df_hist['questoes_detalhadas'].apply(format_details)
             if 'data' in df_hist.columns: df_hist['data'] = pd.to_datetime(df_hist['data']).dt.date
             
-            cols_to_show = ['data', 'acordou', 'dormiu', 'paginas', 'series', 'questoes', 'detalhes_str', 'estudou']
+            # Ajuste: Removido 'estudou' da visualização, mantendo horários
+            cols_to_show = ['data', 'acordou', 'dormiu', 'paginas', 'series', 'questoes', 'detalhes_str']
             # Intersecção para garantir que colunas existam
             cols_final = [c for c in cols_to_show if c in df_hist.columns]
             
@@ -717,8 +717,7 @@ def main_app():
                     "detalhes_str": st.column_config.TextColumn("Detalhes (Mat: Qtd)", help="Ex: Const: 10, Penal: 5"),
                     "questoes": st.column_config.NumberColumn("Total Q", disabled=True),
                     "acordou": st.column_config.TextColumn("Acordou (HH:MM)"),
-                    "dormiu": st.column_config.TextColumn("Dormiu (HH:MM)"),
-                    "estudou": st.column_config.CheckboxColumn("Relevante?", help="Marque se este dia conta para a Constância (Árvore)")
+                    "dormiu": st.column_config.TextColumn("Dormiu (HH:MM)")
                 }
             )
             
@@ -742,6 +741,9 @@ def main_app():
                     data_val = r['data']
                     if isinstance(data_val, (date, datetime)): data_val = data_val.strftime("%Y-%m-%d")
                     
+                    # Lógica Automática: Se tem página ou questão, estudou = True
+                    is_study = (int(r['paginas']) > 0 or tq > 0)
+
                     nl.append({
                         "data": data_val, 
                         "acordou": str(r.get('acordou', '06:00')), 
@@ -750,7 +752,7 @@ def main_app():
                         "series": int(r['series']), 
                         "questoes": tq, 
                         "questoes_detalhadas": new_dets, 
-                        "estudou": bool(r['estudou']) # Respeita a edição manual da relevância
+                        "estudou": is_study
                     })
                 
                 user_data['logs'] = nl
