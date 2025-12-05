@@ -175,7 +175,7 @@ st.markdown("""
         border-radius: 5px;
     }
 
-    /* CORES GERAIS - Alterado para MINTCREAM */
+    /* CORES GERAIS - MINTCREAM */
     .stApp { background-color: #F5FFFA; color: #333333; }
     .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #4A4A4A !important; }
     
@@ -311,7 +311,9 @@ def calculate_streak(logs):
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
-    if os.path.exists(LOGO_FILE): with c2: st.image(LOGO_FILE)
+    if os.path.exists(LOGO_FILE): 
+        with c2: 
+            st.image(LOGO_FILE)
     st.title("🏛️ Mentor SpartaJus")
     st.markdown("<h3 style='text-align:center; color:#8B4513;'>Login</h3>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🔑 Entrar", "📝 Registrar", "🔄 Alterar Senha"])
