@@ -271,7 +271,7 @@ st.markdown("""
     .throne-container { display: flex; flex-direction: column; align-items: center; width: 100%; gap: 15px; }
     
     .throne-card {
-        width: 80%;
+        width: 100%;
         max-width: 500px;
         padding: 20px;
         text-align: center;
@@ -279,19 +279,20 @@ st.markdown("""
         border-radius: 15px;
         margin-bottom: 10px;
         transition: transform 0.2s;
+        margin-left: auto;
+        margin-right: auto;
     }
     .throne-card:hover { transform: scale(1.02); }
 
-    /* RANK 1 - Ouro & Rubi */
+    /* RANK 1 - Ouro & Rubi (MANTIDO O LUXO) */
     .rank-1 {
         background: radial-gradient(circle, #FFF8DC 20%, #FFD700 100%);
-        border: 4px double #DAA520; /* Borda dupla estilo moldura */
+        border: 4px double #DAA520; 
         box-shadow: 
-            0 0 15px rgba(255, 215, 0, 0.6), /* Brilho Dourado */
-            inset 0 0 20px rgba(139, 0, 0, 0.2); /* Profundidade */
+            0 0 15px rgba(255, 215, 0, 0.6), 
+            inset 0 0 20px rgba(139, 0, 0, 0.2);
         color: #4B3621;
     }
-    /* Gemas simuladas nos cantos (Rubi) */
     .rank-1::before, .rank-1::after {
         content: ''; position: absolute; width: 12px; height: 12px; border-radius: 50%;
         background: radial-gradient(circle at 30% 30%, #FF4500, #8B0000);
@@ -300,47 +301,20 @@ st.markdown("""
     .rank-1::before { top: 10px; left: 10px; }
     .rank-1::after { top: 10px; right: 10px; }
 
-    /* RANK 2 - Prata & Safira */
+    /* RANK 2 - Prata (SIMPLIFICADO) */
     .rank-2 {
-        background: radial-gradient(circle, #F8F8FF 20%, #C0C0C0 100%);
-        border: 4px double #708090;
-        box-shadow: 
-            0 0 10px rgba(192, 192, 192, 0.6),
-            inset 0 0 20px rgba(0, 0, 139, 0.1);
+        background: linear-gradient(180deg, #F8F8FF 0%, #C0C0C0 100%);
+        border: 2px solid #708090;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         color: #333;
     }
-    /* Gemas simuladas nos cantos (Safira) */
-    .rank-2::before, .rank-2::after {
-        content: ''; position: absolute; width: 10px; height: 10px; border-radius: 50%;
-        background: radial-gradient(circle at 30% 30%, #4169E1, #00008B);
-        box-shadow: 0 0 4px #0000FF; border: 1px solid #C0C0C0;
-    }
-    .rank-2::before { top: 10px; left: 10px; }
-    .rank-2::after { top: 10px; right: 10px; }
 
-    /* RANK 3 - Bronze & Esmeralda */
+    /* RANK 3 - Bronze (SIMPLIFICADO) */
     .rank-3 {
-        background: radial-gradient(circle, #FFF5EE 20%, #CD7F32 100%);
-        border: 4px double #8B4513;
-        box-shadow: 
-            0 0 10px rgba(205, 127, 50, 0.5),
-            inset 0 0 20px rgba(0, 100, 0, 0.1);
+        background: linear-gradient(180deg, #FFF5EE 0%, #CD7F32 100%);
+        border: 2px solid #8B4513;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         color: #3E2723;
-    }
-    /* Gemas simuladas nos cantos (Esmeralda) */
-    .rank-3::before, .rank-3::after {
-        content: ''; position: absolute; width: 10px; height: 10px; border-radius: 50%;
-        background: radial-gradient(circle at 30% 30%, #32CD32, #006400);
-        box-shadow: 0 0 4px #008000; border: 1px solid #CD7F32;
-    }
-    .rank-3::before { top: 10px; left: 10px; }
-    .rank-3::after { top: 10px; right: 10px; }
-
-    /* RANK COMUM */
-    .rank-common {
-        background: #FFFFFF;
-        border: 1px solid #DEB887;
-        color: #555;
     }
 
     .laurel-text { font-family: 'Georgia', serif; font-weight: bold; font-size: 1.2em; display: flex; align-items: center; justify-content: center; gap: 10px; }
@@ -844,39 +818,56 @@ def main_app():
         
         ur.sort(key=lambda x: x['Q'], reverse=True)
         
-        # Destaque: Apenas Top 3
-        st.markdown("<div class='throne-container'>", unsafe_allow_html=True)
-        for i, p in enumerate(ur[:3]):
-            rank_cls = "rank-1" if i==0 else "rank-2" if i==1 else "rank-3"
-            
-            # Elementos gráficos de coroa/medalha
-            icon = "👑" if i==0 else "🥈" if i==1 else "🥉"
-            
-            # Laureas (ramos) nas bordas do nome
-            laurel_l = "🌿"
-            laurel_r = "🌿"
-            
-            # Joias extras no HTML para o Rank 1 (visual mais rico)
-            extra_jewel = "<div style='font-size:0.8em; margin-top:5px;'>💎 ♦️ 💎</div>" if i==0 else ""
-            
-            # SOLUÇÃO DEFINITIVA: Removemos todas as quebras de linha com .replace('\n', ' ')
-            # Isso garante que o Markdown não encontre identação e trate como código.
-            html_card = f"""
-            <div class='throne-card {rank_cls}'>
-                <div class='laurel-text'>
-                    <span class='laurel-icon'>{laurel_l}</span>
-                    <span>{icon} {p['User']}</span>
-                    <span class='laurel-icon'>{laurel_r}</span>
+        # 1. PRIMEIRO LUGAR (CENTRALIZADO)
+        if len(ur) > 0:
+            p1 = ur[0]
+            # Usa rank-1 (luxuoso)
+            extra_jewel = "<div style='font-size:0.8em; margin-top:5px;'>💎 ♦️ 💎</div>"
+            html_1 = f"""
+            <div class='throne-container'>
+                <div class='throne-card rank-1'>
+                    <div class='laurel-text'>
+                        <span class='laurel-icon'>🌿</span>
+                        <span>👑 {p1['User']}</span>
+                        <span class='laurel-icon'>🌿</span>
+                    </div>
+                    {extra_jewel}
+                    <hr style='border-top: 1px solid rgba(0,0,0,0.1); margin: 10px 0;'>
+                    <p style='margin:0; font-weight:bold; font-size:1.1em;'>{p1['Q']} Questões</p>
+                    <small style='font-style:italic;'>{p1['Patente']}</small>
                 </div>
-                {extra_jewel}
-                <hr style='border-top: 1px solid rgba(0,0,0,0.1); margin: 10px 0;'>
-                <p style='margin:0; font-weight:bold; font-size:1.1em;'>{p['Q']} Questões</p>
-                <small style='font-style:italic;'>{p['Patente']}</small>
             </div>
-            """.replace("\n", " ") # Remove newlines para evitar bloco de código no Markdown
+            """.replace("\n", " ")
+            st.markdown(html_1, unsafe_allow_html=True)
+        
+        # 2. SEGUNDO E TERCEIRO (LADO A LADO)
+        if len(ur) > 1:
+            c_rank2, c_rank3 = st.columns(2)
             
-            st.markdown(html_card, unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+            # Rank 2
+            p2 = ur[1]
+            html_2 = f"""
+            <div class='throne-card rank-2'>
+                <h3>🥈 {p2['User']}</h3>
+                <p style='margin:0; font-weight:bold;'>{p2['Q']} Questões</p>
+                <small>{p2['Patente']}</small>
+            </div>
+            """.replace("\n", " ")
+            with c_rank2:
+                st.markdown(html_2, unsafe_allow_html=True)
+            
+            # Rank 3 (se existir)
+            if len(ur) > 2:
+                p3 = ur[2]
+                html_3 = f"""
+                <div class='throne-card rank-3'>
+                    <h3>🥉 {p3['User']}</h3>
+                    <p style='margin:0; font-weight:bold;'>{p3['Q']} Questões</p>
+                    <small>{p3['Patente']}</small>
+                </div>
+                """.replace("\n", " ")
+                with c_rank3:
+                    st.markdown(html_3, unsafe_allow_html=True)
 
         st.divider()
         st.subheader("📜 Lista Geral de Guerreiros")
