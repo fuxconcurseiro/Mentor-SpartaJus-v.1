@@ -691,7 +691,12 @@ def main_app():
             st.subheader("📜 Histórico Editável")
             # Preparação dos dados para edição
             df_hist = pd.DataFrame(user_data['logs'])
+            
+            # Garante que colunas essenciais existam no DataFrame
+            for col in ['acordou', 'dormiu']:
+                if col not in df_hist.columns: df_hist[col] = "00:00"
             if 'questoes_detalhadas' not in df_hist.columns: df_hist['questoes_detalhadas'] = [{} for _ in range(len(df_hist))]
+            if 'estudou' not in df_hist.columns: df_hist['estudou'] = False
             
             def format_details(d):
                 if isinstance(d, dict): return ", ".join([f"{k}: {v}" for k, v in d.items()])
@@ -700,7 +705,7 @@ def main_app():
             df_hist['detalhes_str'] = df_hist['questoes_detalhadas'].apply(format_details)
             if 'data' in df_hist.columns: df_hist['data'] = pd.to_datetime(df_hist['data']).dt.date
             
-            cols_to_show = ['data', 'paginas', 'series', 'questoes', 'detalhes_str']
+            cols_to_show = ['data', 'acordou', 'dormiu', 'paginas', 'series', 'questoes', 'detalhes_str', 'estudou']
             # Intersecção para garantir que colunas existam
             cols_final = [c for c in cols_to_show if c in df_hist.columns]
             
@@ -710,7 +715,10 @@ def main_app():
                 column_config={
                     "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
                     "detalhes_str": st.column_config.TextColumn("Detalhes (Mat: Qtd)", help="Ex: Const: 10, Penal: 5"),
-                    "questoes": st.column_config.NumberColumn("Total Q", disabled=True)
+                    "questoes": st.column_config.NumberColumn("Total Q", disabled=True),
+                    "acordou": st.column_config.TextColumn("Acordou (HH:MM)"),
+                    "dormiu": st.column_config.TextColumn("Dormiu (HH:MM)"),
+                    "estudou": st.column_config.CheckboxColumn("Relevante?", help="Marque se este dia conta para a Constância (Árvore)")
                 }
             )
             
@@ -731,22 +739,18 @@ def main_app():
                                     tq += qtd
                                 except: pass
                     
-                    # Recupera dados originais para não perder acordou/dormiu
-                    orig_log_search = [l for l in user_data['logs'] if l['data'] == str(r['data'])]
-                    orig_log = orig_log_search[0] if orig_log_search else {}
-                    
                     data_val = r['data']
                     if isinstance(data_val, (date, datetime)): data_val = data_val.strftime("%Y-%m-%d")
                     
                     nl.append({
                         "data": data_val, 
-                        "acordou": orig_log.get('acordou', '00:00'), 
-                        "dormiu": orig_log.get('dormiu', '00:00'), 
+                        "acordou": str(r.get('acordou', '06:00')), 
+                        "dormiu": str(r.get('dormiu', '22:00')), 
                         "paginas": int(r['paginas']), 
                         "series": int(r['series']), 
                         "questoes": tq, 
                         "questoes_detalhadas": new_dets, 
-                        "estudou": (int(r['paginas']) > 0 or tq > 0)
+                        "estudou": bool(r['estudou']) # Respeita a edição manual da relevância
                     })
                 
                 user_data['logs'] = nl
