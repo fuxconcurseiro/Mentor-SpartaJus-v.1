@@ -76,6 +76,7 @@ def connect_to_sheets():
         return None
 
 def sync_down_from_sheets():
+    """Baixa da nuvem para o local."""
     client = connect_to_sheets()
     if not client: return False 
     try:
@@ -98,6 +99,7 @@ def sync_down_from_sheets():
         return False
 
 def sync_up_to_sheets(db_data):
+    """Sobe do local para a nuvem."""
     client = connect_to_sheets()
     if not client: return False
     try:
@@ -115,9 +117,12 @@ def sync_up_to_sheets(db_data):
 
 # --- PERSISTÊNCIA LOCAL ---
 def load_db():
+    # Tenta sincronizar ao carregar pela primeira vez na sessão
     if "db_synced" not in st.session_state:
         success = sync_down_from_sheets()
-        if success: st.session_state["db_synced"] = True
+        if success: 
+            st.session_state["db_synced"] = True
+            
     if not os.path.exists(DB_FILE): return {}
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
@@ -136,16 +141,23 @@ def save_db(db_data):
         os.replace(temp_file, DB_FILE)
     except Exception as e:
         st.error(f"Erro salvamento local: {e}")
+    
+    # Sincroniza com a nuvem em background
     try: sync_up_to_sheets(db_data)
     except: pass 
 
-# --- AUTO-CRIAÇÃO ---
+# --- AUTO-CRIAÇÃO COM PROTEÇÃO DE DADOS ---
 def ensure_users_exist():
+    # Força sync antes de verificar usuários para evitar criar duplicatas vazias
+    sync_down_from_sheets()
+    
     db = load_db()
     data_changed = False
     vip_users = { "fux_concurseiro": "Senha128", "steissy": "Mudar123", "JuOlebar": "Mudar123" }
+    
     for user, default_pass in vip_users.items():
         if user not in db:
+            # Só cria se realmente não existir nem no local nem na nuvem recém-baixada
             db[user] = {
                 "password": default_pass,
                 "logs": [],
@@ -156,8 +168,10 @@ def ensure_users_exist():
                 "mod_message": ""
             }
             data_changed = True
+            
     if data_changed: save_db(db)
 
+# Executa na inicialização
 ensure_users_exist()
 
 # --- ESTILOS CSS (GHOSTWHITE & NAVAJOWHITE) ---
@@ -311,7 +325,7 @@ def calculate_streak(logs):
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
-    if os.path.exists(LOGO_FILE): 
+    if os.path.exists(LOGO_FILE):
         with c2: 
             st.image(LOGO_FILE)
     st.title("🏛️ Mentor SpartaJus")
@@ -379,6 +393,13 @@ def main_app():
     with st.sidebar:
         if os.path.exists(LOGO_FILE): st.image(LOGO_FILE)
         st.write(f"### Olá, {user}")
+        
+        # RESTAURAÇÃO DO STATUS DO GOOGLE SHEETS
+        if SHEETS_AVAILABLE and get_google_credentials():
+            st.caption("🟢 Conectado à Nuvem (Google Sheets)")
+        else:
+            st.caption("🟠 Modo Offline (Local JSON)")
+
         st.markdown("""
         <div style='background-color: rgba(255, 255, 255, 0.5); padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #DEB887; font-size: 0.85em; color: #5C4033;'>
             <strong>🎖️ PATENTES DO SPARTAJUS:</strong><br>
