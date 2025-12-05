@@ -160,7 +160,7 @@ def ensure_users_exist():
 
 ensure_users_exist()
 
-# --- ESTILOS CSS (IVORY & NAVAJOWHITE) ---
+# --- ESTILOS CSS (GHOSTWHITE & NAVAJOWHITE) ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -175,8 +175,8 @@ st.markdown("""
         border-radius: 5px;
     }
 
-    /* CORES GERAIS - Alterado para IVORY (#FFFFF0) */
-    .stApp { background-color: #FFFFF0; color: #333333; }
+    /* CORES GERAIS */
+    .stApp { background-color: #F8F8FF; color: #333333; }
     .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #4A4A4A !important; }
     
     h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
@@ -379,6 +379,13 @@ def main_app():
     with st.sidebar:
         if os.path.exists(LOGO_FILE): st.image(LOGO_FILE)
         st.write(f"### Olá, {user}")
+        
+        # STATUS DO GOOGLE SHEETS (Recuperado)
+        if SHEETS_AVAILABLE and get_google_credentials():
+            st.caption("🟢 Conectado à Nuvem (Google Sheets)")
+        else:
+            st.caption("🟠 Modo Offline (Local JSON)")
+
         st.markdown("""
         <div style='background-color: rgba(255, 255, 255, 0.5); padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #DEB887; font-size: 0.85em; color: #5C4033;'>
             <strong>🎖️ PATENTES DO SPARTAJUS:</strong><br>
