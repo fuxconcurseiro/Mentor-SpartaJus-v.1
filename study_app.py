@@ -158,7 +158,7 @@ def ensure_users_exist():
 
 ensure_users_exist()
 
-# --- ESTILOS CSS (GHOSTWHITE & NAVAJOWHITE) ---
+# --- ESTILOS CSS ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -309,7 +309,9 @@ def calculate_streak(logs):
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
-    if os.path.exists(LOGO_FILE): with c2: st.image(LOGO_FILE)
+    if os.path.exists(LOGO_FILE): 
+        with c2: 
+            st.image(LOGO_FILE)
     st.title("🏛️ Mentor SpartaJus")
     st.markdown("<h3 style='text-align:center; color:#8B4513;'>Login</h3>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🔑 Entrar", "📝 Registrar", "🔄 Alterar Senha"])
@@ -359,8 +361,6 @@ def main_app():
     user_data = st.session_state['user_data']
     if 'subjects_list' not in user_data: user_data['subjects_list'] = ["Constitucional", "Administrativo", "Penal", "Civil", "Processo Civil"]
     
-    # CORREÇÃO DO ERRO: Garantir que todas as linhas tenham 'questoes_detalhadas'
-    # Se for um usuário antigo, cria o campo
     if 'logs' in user_data:
         for log in user_data['logs']:
             if 'questoes_detalhadas' not in log:
@@ -446,31 +446,9 @@ def main_app():
                 
                 st.markdown("---")
                 st.markdown("##### ⚔️ Questões por Matéria")
-                # Tabela Editável para inserir questões por matéria
-                # Dataframe inicial
-                q_df = pd.DataFrame([{"Matéria": "", "Qtd": 0}])
-                
-                quest_editor = st.data_editor(
-                    q_df,
-                    num_rows="dynamic",
-                    column_config={
-                        "Matéria": st.column_config.SelectboxColumn(
-                            "Matéria",
-                            options=user_data['subjects_list'],
-                            required=True
-                        ),
-                        "Qtd": st.column_config.NumberColumn(
-                            "Qtd",
-                            min_value=0,
-                            step=1,
-                            format="%d"
-                        )
-                    },
-                    use_container_width=True
-                )
-
+                quest_df = pd.DataFrame({"Matéria": [""], "Qtd": [0]})
+                quest_editor = st.data_editor(quest_df, num_rows="dynamic", column_config={"Matéria": st.column_config.SelectboxColumn("Matéria", options=user_data['subjects_list'], required=True), "Qtd": st.column_config.NumberColumn("Qtd", min_value=0, step=1)}, use_container_width=True)
                 if st.form_submit_button("💾 Salvar"):
-                    # Processa as questões detalhadas da tabela
                     q_details = {}
                     total_q_day = 0
                     for _, r in quest_editor.iterrows():
@@ -481,17 +459,9 @@ def main_app():
                             total_q_day += qtd
                     
                     is_study = (pg > 0) or (total_q_day > 0)
+                    d_str = d_log.strftime("%Y-%m-%d")
                     
-                    new_log = {
-                        "data": d_log.strftime("%Y-%m-%d"),
-                        "acordou": wt, "dormiu": sl,
-                        "paginas": pg, "series": ws,
-                        "questoes": total_q_day,
-                        "questoes_detalhadas": q_details, # Novo campo essencial
-                        "estudou": is_study
-                    }
-                    
-                    # Verifica e atualiza se a data já existe
+                    new_log = {"data": d_str, "acordou": wt, "dormiu": sl, "paginas": pg, "series": ws, "questoes": total_q_day, "questoes_detalhadas": q_details, "estudou": is_study}
                     exists = False
                     for idx, l in enumerate(user_data['logs']):
                         if l['data'] == new_log['data']:
@@ -502,7 +472,6 @@ def main_app():
                         user_data['logs'].append(new_log)
                         if is_study: user_data['tree_branches'] += 1
                         else: user_data['tree_branches'] -= 2
-                    
                     save_current_user_data()
                     st.success("Salvo!")
                     time.sleep(1)
@@ -511,13 +480,10 @@ def main_app():
     with tabs[1]:
         st.header("📈 Análise")
         if user_data['logs']:
-            # Prepara dados de questões para o gráfico
             all_q_details = {}
             for l in user_data['logs']:
-                # Garante que lê do campo certo
                 dets = l.get('questoes_detalhadas', {})
-                for m, q in dets.items():
-                    all_q_details[m] = all_q_details.get(m, 0) + q
+                for m, q in dets.items(): all_q_details[m] = all_q_details.get(m, 0) + q
             
             st.subheader("Distribuição de Questões")
             if all_q_details:
@@ -530,12 +496,9 @@ def main_app():
                 ax.set_facecolor('white')
                 colors = ['#FF6347', '#4682B4', '#32CD32', '#FFD700', '#8A2BE2', '#FF69B4', '#00CED1']
                 wedges, texts = ax.pie(sizes, labels=None, startangle=90, colors=colors)
-                
-                # Legenda com porcentagem e nome
                 legend_labels = [f"{(s/total)*100:.1f}% - {l}" for l, s in zip(labels, sizes)]
                 ax.legend(wedges, legend_labels, title="Matérias", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), frameon=False)
                 ax.axis('equal')
-                
                 c1, c2, c3 = st.columns([1, 2, 1])
                 with c2: st.pyplot(fig)
             else: st.info("Sem detalhes de questões.")
@@ -562,34 +525,22 @@ def main_app():
             st.divider()
             st.subheader("📜 Histórico Editável")
             df_hist = pd.DataFrame(user_data['logs'])
-            
-            # Formatação segura para evitar o erro de 'dict' has no attribute 'apply'
-            # Se nao tiver a coluna, cria
-            if 'questoes_detalhadas' not in df_hist.columns:
-                df_hist['questoes_detalhadas'] = [{} for _ in range(len(df_hist))]
-            
-            # Converte para string para edição
+            if 'questoes_detalhadas' not in df_hist.columns: df_hist['questoes_detalhadas'] = [{} for _ in range(len(df_hist))]
             def format_details(d):
                 if isinstance(d, dict): return ", ".join([f"{k}: {v}" for k, v in d.items()])
                 return ""
-            
             df_hist['detalhes_str'] = df_hist['questoes_detalhadas'].apply(format_details)
+            if 'data' in df_hist.columns: df_hist['data'] = pd.to_datetime(df_hist['data']).dt.date
             
-            if 'data' in df_hist.columns:
-                df_hist['data'] = pd.to_datetime(df_hist['data']).dt.date
-            
-            # Editor
             edited = st.data_editor(
                 df_hist[['data', 'paginas', 'series', 'questoes', 'detalhes_str']],
+                use_container_width=True, num_rows="dynamic", key="hist_ed",
                 column_config={
                     "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
                     "detalhes_str": st.column_config.TextColumn("Detalhes (Mat: Qtd)", help="Ex: Const: 10, Penal: 5"),
                     "questoes": st.column_config.NumberColumn("Total Q", disabled=True)
-                },
-                use_container_width=True, 
-                num_rows="dynamic"
+                }
             )
-            
             if st.button("Salvar Correções"):
                 nl = []
                 for _, r in edited.iterrows():
@@ -605,23 +556,10 @@ def main_app():
                                     new_dets[m.strip()] = qtd
                                     tq += qtd
                                 except: pass
-                    
-                    # Preserva dados originais de sono
                     orig_log = next((l for l in user_data['logs'] if l['data'] == r['data']), {})
-                    
                     data_val = r['data']
                     if isinstance(data_val, (date, datetime)): data_val = data_val.strftime("%Y-%m-%d")
-                    
-                    nl.append({
-                        "data": data_val, 
-                        "acordou": orig_log.get('acordou', '00:00'), 
-                        "dormiu": orig_log.get('dormiu', '00:00'),
-                        "paginas": int(r['paginas']), 
-                        "series": int(r['series']), 
-                        "questoes": tq, 
-                        "questoes_detalhadas": new_dets, 
-                        "estudou": (int(r['paginas']) > 0 or tq > 0)
-                    })
+                    nl.append({"data": data_val, "acordou": orig_log.get('acordou', '00:00'), "dormiu": orig_log.get('dormiu', '00:00'), "paginas": int(r['paginas']), "series": int(r['series']), "questoes": tq, "questoes_detalhadas": new_dets, "estudou": (int(r['paginas']) > 0 or tq > 0)})
                 user_data['logs'] = nl
                 save_current_user_data()
                 st.success("Atualizado!")
@@ -658,7 +596,7 @@ def main_app():
         plan_date = st.date_input("Data:", format="DD/MM/YYYY")
         pk = plan_date.strftime("%Y-%m-%d")
         curr = user_data['agendas'].get(pk, "")
-        nt = st.text_area("Plano:", value=curr, placeholder="Ex. Fazer 2 cadernos do TEC...")
+        nt = st.text_area("Plano:", value=curr, placeholder="Ex. Fazer 2 cadernos do TEC de Constitucional e 1 de Penal.")
         if st.button("Salvar Plano"):
             user_data['agendas'][pk] = nt
             save_current_user_data()
@@ -692,8 +630,33 @@ def main_app():
 
     if user == ADMIN_USER:
         with tabs[6]:
-            st.header("🛡️ Admin")
-            st.write("Painel restrito.")
+            st.header("🛡️ Moderação")
+            ca, cd = st.columns(2)
+            with ca:
+                st.subheader("Recrutar")
+                with st.form("new_usr"):
+                    nu = st.text_input("User")
+                    np = st.text_input("Pass", type="password")
+                    if st.form_submit_button("Criar"):
+                        db = load_db()
+                        if nu not in db:
+                            db[nu] = {"password": np, "logs": [], "agendas": {}, "tree_branches": 1, "created_at": str(datetime.now()), "mod_message": ""}
+                            save_db(db)
+                            st.success("Criado!")
+                        else: st.error("Já existe.")
+            with cd:
+                st.subheader("Banir")
+                db = load_db()
+                usrs = [u for u in db.keys() if u not in ["global_alerts", ADMIN_USER]]
+                if usrs:
+                    target = st.selectbox("Alvo:", usrs)
+                    if st.button("Banir"):
+                        del db[target]
+                        save_db(db)
+                        st.success("Banido!")
+                        time.sleep(1)
+                        st.rerun()
+                else: st.info("Ninguém para banir.")
 
 # --- EXECUÇÃO ---
 if 'user' not in st.session_state: login_page()
