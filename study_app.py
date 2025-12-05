@@ -160,7 +160,7 @@ def ensure_users_exist():
 
 ensure_users_exist()
 
-# --- ESTILOS CSS (GHOSTWHITE & NAVAJOWHITE) ---
+# --- ESTILOS CSS ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -311,9 +311,12 @@ def calculate_streak(logs):
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
-    if os.path.exists(LOGO_FILE): with c2: st.image(LOGO_FILE)
+    if os.path.exists(LOGO_FILE):
+        with c2: 
+            st.image(LOGO_FILE)
     st.title("🏛️ Mentor SpartaJus")
     st.markdown("<h3 style='text-align:center; color:#8B4513;'>Login</h3>", unsafe_allow_html=True)
+    
     tab1, tab2, tab3 = st.tabs(["🔑 Entrar", "📝 Registrar", "🔄 Alterar Senha"])
     with tab1:
         u = st.text_input("Usuário", key="l_u").strip()
@@ -367,10 +370,8 @@ def main_app():
                 log['questoes_detalhadas'] = {}
 
     st.session_state.api_key = get_api_key()
-    
-    # CÁLCULOS
-    total_questions = sum([l.get('questoes', 0) for l in user_data['logs']])
-    total_pages = sum([l.get('paginas', 0) for l in user_data['logs']])
+    total_q = sum([l.get('questoes', 0) for l in user_data['logs']])
+    total_p = sum([l.get('paginas', 0) for l in user_data['logs']])
     streak = calculate_streak(user_data['logs'])
     
     with st.sidebar:
@@ -409,23 +410,22 @@ def main_app():
                 save_current_user_data()
                 st.rerun()
     
-    # BARRA DE PROGRESSO
     st.title("🏛️ Mentor SpartaJus")
-    progress_val = total_questions % 5000
-    percent_val = (progress_val / 5000) * 100
-    rem_q = 5000 - progress_val
+    prog = total_q % 5000
+    perc = (prog / 5000) * 100
+    rem_q = 5000 - prog
     st.markdown(f"""
     <div style="background-color: #FFF; border: 1px solid #DEB887; border-radius: 12px; padding: 4px;">
-        <div style="width: {percent_val}%; background-color: #047a0a; height: 24px; border-radius: 8px; text-align: center; color: white; font-size: 0.8em; line-height: 24px;">{percent_val:.1f}%</div>
+        <div style="width: {perc}%; background-color: #047a0a; height: 24px; border-radius: 8px; text-align: center; color: white; font-size: 0.8em; line-height: 24px;">{perc:.1f}%</div>
     </div>
-    <div style="display:flex; justify-content:space-between; font-size:0.8em; color:#555;"><span>Atual: {progress_val}</span><span>Falta: {rem_q}</span></div>
+    <div style="display:flex; justify-content:space-between; font-size:0.8em; color:#555;"><span>Atual: {prog}</span><span>Falta: {rem_q}</span></div>
     """, unsafe_allow_html=True)
     
     c1, c2 = st.columns([2, 1])
-    with c1: st.markdown(f"<div class='rank-card'><h2>{user.upper()}</h2><h3>🛡️ {get_patent(total_questions)}</h3><p>Total: {total_questions} | 🔥 Fogo: {streak} dias</p></div>", unsafe_allow_html=True)
+    with c1: st.markdown(f"<div class='rank-card'><h2>{user.upper()}</h2><h3>🛡️ {get_patent(total_q)}</h3><p>Total: {total_q} | 🔥 Fogo: {streak} dias</p></div>", unsafe_allow_html=True)
     with c2:
-        stars = "".join(["🟡"]*get_stars(total_pages)[0] + ["⚪"]*get_stars(total_pages)[1] + ["🟤"]*get_stars(total_pages)[2]) or "Sem estrelas"
-        st.markdown(f"<div class='metric-card'><h4>⭐ Leitura</h4><div style='font-size:1.5em;'>{stars}</div><p>Páginas: {total_pages}</p></div>", unsafe_allow_html=True)
+        stars = "".join(["🟡"]*get_stars(total_p)[0] + ["⚪"]*get_stars(total_p)[1] + ["🟤"]*get_stars(total_p)[2]) or "Sem estrelas"
+        st.markdown(f"<div class='metric-card'><h4>⭐ Leitura</h4><div style='font-size:1.5em;'>{stars}</div><p>Páginas: {total_p}</p></div>", unsafe_allow_html=True)
 
     tabs = st.tabs(["📊 Diário", "📈 Dashboard", "🏆 Ranking", "📢 Avisos", "📅 Agenda", "🦁 Comportamento"] + (["🛡️ Admin"] if user==ADMIN_USER else []))
 
@@ -433,7 +433,6 @@ def main_app():
         c_tree, c_form = st.columns([1, 1])
         with c_tree:
             st.subheader("Árvore da Constância")
-            # Correção: linha única para o SVG
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             if user_data.get('mod_message'):
                 st.markdown(f"<div class='private-message'><strong>📨 MENSAGEM DO MENTOR:</strong><br>{user_data['mod_message']}</div>", unsafe_allow_html=True)
