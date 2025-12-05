@@ -900,11 +900,86 @@ def main_app():
 
     # --- TAB 4: AVISOS ---
     with tabs[3]:
-        st.header("📢 Avisos")
-        db = data_manager.load()
+        st.header("📢 Central de Comandos")
+        
+        # --- ÁREA DO USUÁRIO (LEITURA) ---
+        # 1. Alertas Pessoais
+        if user_data.get('mod_message'):
+            st.markdown(f"""
+            <div class='private-message'>
+                <h3>📨 Mensagem Pessoal do Mentor</h3>
+                {user_data['mod_message']}
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            if user != ADMIN_USER:
+                st.info("Nenhuma mensagem pessoal do mentor.")
+
+        st.divider()
+
+        # 2. Alertas Gerais
+        st.subheader("📢 Alertas Gerais")
+        db = data_manager.load() # Reload to get fresh alerts
         alerts = db.get("global_alerts", [])
-        if not alerts: st.info("Silêncio no front.")
-        for a in alerts: st.markdown(f"<div class='mod-message'><strong>{a['date']}</strong><br>{a['text']}</div>", unsafe_allow_html=True)
+        
+        if not alerts:
+            st.caption("Sem alertas globais no momento.")
+        
+        for i, a in enumerate(alerts):
+            st.markdown(f"<div class='mod-message'><strong>{a['date']}</strong><br>{a['text']}</div>", unsafe_allow_html=True)
+            # Se for admin, mostra botão de apagar aqui mesmo
+            if user == ADMIN_USER:
+                if st.button(f"🗑️ Apagar Alerta #{i+1}", key=f"del_alert_{i}"):
+                    del db["global_alerts"][i]
+                    data_manager.save(db)
+                    st.rerun()
+
+        # --- ÁREA DO ADMIN (ESCRITA) ---
+        if user == ADMIN_USER:
+            st.divider()
+            st.subheader("🛡️ Painel de Transmissão (Moderador)")
+            
+            with st.container(border=True):
+                mode = st.radio("Destino da Mensagem:", ["📢 Todos (Geral)", "👤 Espartano (Pessoal)"], horizontal=True)
+                
+                if "Todos" in mode:
+                    new_alert_text = st.text_area("Novo Alerta Geral:", height=100)
+                    if st.button("🚀 Publicar para Todos"):
+                        if new_alert_text:
+                            if "global_alerts" not in db: db["global_alerts"] = []
+                            # Insere no início para ser o mais recente
+                            db["global_alerts"].insert(0, {
+                                "date": get_now_br().strftime("%d/%m/%Y %H:%M"), 
+                                "text": new_alert_text
+                            })
+                            data_manager.save(db)
+                            st.success("Alerta Global enviado!")
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.warning("Escreva algo.")
+                else:
+                    # Carrega usuários para o selectbox
+                    all_users = [u for u in db.keys() if u not in ["global_alerts", ADMIN_USER]]
+                    target_u = st.selectbox("Selecione o Soldado:", all_users)
+                    
+                    if target_u:
+                        current_msg = db[target_u].get("mod_message", "")
+                        st.caption(f"Mensagem atual: {current_msg if current_msg else '(Vazio)'}")
+                        
+                        msg_text = st.text_area("Mensagem Pessoal:", value=current_msg, height=100)
+                        
+                        c_save, c_clear = st.columns(2)
+                        with c_save:
+                            if st.button("💾 Enviar/Atualizar"):
+                                db[target_u]["mod_message"] = msg_text
+                                data_manager.save(db)
+                                st.success(f"Mensagem para {target_u} atualizada!")
+                        with c_clear:
+                            if st.button("🗑️ Apagar Mensagem"):
+                                db[target_u]["mod_message"] = ""
+                                data_manager.save(db)
+                                st.success(f"Mensagem para {target_u} removida!")
 
     # --- TAB 5: AGENDA ---
     with tabs[4]:
