@@ -311,9 +311,12 @@ def calculate_streak(logs):
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
-    if os.path.exists(LOGO_FILE): with c2: st.image(LOGO_FILE)
+    if os.path.exists(LOGO_FILE): 
+        with c2: 
+            st.image(LOGO_FILE)
     st.title("🏛️ Mentor SpartaJus")
     st.markdown("<h3 style='text-align:center; color:#8B4513;'>Login</h3>", unsafe_allow_html=True)
+    
     tab1, tab2, tab3 = st.tabs(["🔑 Entrar", "📝 Registrar", "🔄 Alterar Senha"])
     with tab1:
         u = st.text_input("Usuário", key="l_u").strip()
@@ -359,8 +362,6 @@ def save_current_user_data():
 def main_app():
     user = st.session_state['user']
     user_data = st.session_state['user_data']
-    
-    # DEFINIÇÃO DAS VARIÁVEIS DE ADMIN (REINSERIDA PARA CORRIGIR O ERRO)
     is_real_admin = (user == ADMIN_USER)
     is_admin_mode = ('admin_user' in st.session_state and st.session_state['admin_user'] == ADMIN_USER)
     
@@ -372,8 +373,10 @@ def main_app():
                 log['questoes_detalhadas'] = {}
 
     st.session_state.api_key = get_api_key()
-    total_q = sum([l.get('questoes', 0) for l in user_data['logs']])
-    total_p = sum([l.get('paginas', 0) for l in user_data['logs']])
+    
+    # CÁLCULOS
+    total_questions = sum([l.get('questoes', 0) for l in user_data['logs']])
+    total_pages = sum([l.get('paginas', 0) for l in user_data['logs']])
     streak = calculate_streak(user_data['logs'])
     
     with st.sidebar:
@@ -398,8 +401,20 @@ def main_app():
                 st.download_button("Baixar Dados (JSON)", f, f"backup_{get_now_br().strftime('%Y%m%d_%H%M')}.json", "application/json")
         
         st.divider()
+        with st.expander("📚 Gerenciar Matérias"):
+            new_sub = st.text_input("Nova Matéria:")
+            if st.button("Adicionar") and new_sub:
+                if new_sub not in user_data['subjects_list']:
+                    user_data['subjects_list'].append(new_sub)
+                    save_current_user_data()
+                    st.success(f"{new_sub} adicionada!")
+                    st.rerun()
+            rem_sub = st.selectbox("Remover Matéria:", [""] + user_data['subjects_list'])
+            if st.button("Remover") and rem_sub:
+                user_data['subjects_list'].remove(rem_sub)
+                save_current_user_data()
+                st.rerun()
         
-        # PAINEL DO MODERADOR (USANDO AS VARIÁVEIS REINSERIDAS)
         if is_real_admin or is_admin_mode:
             with st.expander("🛡️ PAINEL DO MODERADOR", expanded=True):
                 st.caption("Área restrita de comando")
@@ -419,23 +434,8 @@ def main_app():
                         st.session_state['user_data'] = load_db()[ADMIN_USER]
                         st.rerun()
 
-        st.divider()
-        with st.expander("📚 Gerenciar Matérias"):
-            new_sub = st.text_input("Nova Matéria:")
-            if st.button("Adicionar") and new_sub:
-                if new_sub not in user_data['subjects_list']:
-                    user_data['subjects_list'].append(new_sub)
-                    save_current_user_data()
-                    st.success(f"{new_sub} adicionada!")
-                    st.rerun()
-            rem_sub = st.selectbox("Remover Matéria:", [""] + user_data['subjects_list'])
-            if st.button("Remover") and rem_sub:
-                user_data['subjects_list'].remove(rem_sub)
-                save_current_user_data()
-                st.rerun()
-    
     st.title("🏛️ Mentor SpartaJus")
-    prog = total_q % 5000
+    prog = total_questions % 5000
     perc = (prog / 5000) * 100
     rem_q = 5000 - prog
     st.markdown(f"""
@@ -446,10 +446,10 @@ def main_app():
     """, unsafe_allow_html=True)
     
     c1, c2 = st.columns([2, 1])
-    with c1: st.markdown(f"<div class='rank-card'><h2>{user.upper()}</h2><h3>🛡️ {get_patent(total_q)}</h3><p>Total: {total_q} | 🔥 Fogo: {streak} dias</p></div>", unsafe_allow_html=True)
+    with c1: st.markdown(f"<div class='rank-card'><h2>{user.upper()}</h2><h3>🛡️ {get_patent(total_questions)}</h3><p>Total: {total_questions} | 🔥 Fogo: {streak} dias</p></div>", unsafe_allow_html=True)
     with c2:
-        stars = "".join(["🟡"]*get_stars(total_p)[0] + ["⚪"]*get_stars(total_p)[1] + ["🟤"]*get_stars(total_p)[2]) or "Sem estrelas"
-        st.markdown(f"<div class='metric-card'><h4>⭐ Leitura</h4><div style='font-size:1.5em;'>{stars}</div><p>Páginas: {total_p}</p></div>", unsafe_allow_html=True)
+        stars = "".join(["🟡"]*get_stars(total_pages)[0] + ["⚪"]*get_stars(total_pages)[1] + ["🟤"]*get_stars(total_pages)[2]) or "Sem estrelas"
+        st.markdown(f"<div class='metric-card'><h4>⭐ Leitura</h4><div style='font-size:1.5em;'>{stars}</div><p>Páginas: {total_pages}</p></div>", unsafe_allow_html=True)
 
     tabs = st.tabs(["📊 Diário", "📈 Dashboard", "🏆 Ranking", "📢 Avisos", "📅 Agenda", "🦁 Comportamento"] + (["🛡️ Admin"] if user==ADMIN_USER else []))
 
