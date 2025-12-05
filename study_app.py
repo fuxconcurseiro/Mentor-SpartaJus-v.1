@@ -859,19 +859,21 @@ def main_app():
             # Joias extras no HTML para o Rank 1 (visual mais rico)
             extra_jewel = "<div style='font-size:0.8em; margin-top:5px;'>💎 ♦️ 💎</div>" if i==0 else ""
             
+            # CORREÇÃO: Removemos a identação interna do HTML para evitar que o Markdown
+            # interprete como bloco de código e exiba as tags como texto.
             html_card = f"""
-            <div class='throne-card {rank_cls}'>
-                <div class='laurel-text'>
-                    <span class='laurel-icon'>{laurel_l}</span>
-                    <span>{icon} {p['User']}</span>
-                    <span class='laurel-icon'>{laurel_r}</span>
-                </div>
-                {extra_jewel}
-                <hr style='border-top: 1px solid rgba(0,0,0,0.1); margin: 10px 0;'>
-                <p style='margin:0; font-weight:bold; font-size:1.1em;'>{p['Q']} Questões</p>
-                <small style='font-style:italic;'>{p['Patente']}</small>
-            </div>
-            """
+<div class='throne-card {rank_cls}'>
+    <div class='laurel-text'>
+        <span class='laurel-icon'>{laurel_l}</span>
+        <span>{icon} {p['User']}</span>
+        <span class='laurel-icon'>{laurel_r}</span>
+    </div>
+    {extra_jewel}
+    <hr style='border-top: 1px solid rgba(0,0,0,0.1); margin: 10px 0;'>
+    <p style='margin:0; font-weight:bold; font-size:1.1em;'>{p['Q']} Questões</p>
+    <small style='font-style:italic;'>{p['Patente']}</small>
+</div>
+"""
             st.markdown(html_card, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
