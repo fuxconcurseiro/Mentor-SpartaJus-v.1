@@ -76,7 +76,6 @@ def connect_to_sheets():
         return None
 
 def sync_down_from_sheets():
-    """Baixa da nuvem para o local."""
     client = connect_to_sheets()
     if not client: return False 
     try:
@@ -99,7 +98,6 @@ def sync_down_from_sheets():
         return False
 
 def sync_up_to_sheets(db_data):
-    """Sobe do local para a nuvem."""
     client = connect_to_sheets()
     if not client: return False
     try:
@@ -117,12 +115,9 @@ def sync_up_to_sheets(db_data):
 
 # --- PERSISTÊNCIA LOCAL ---
 def load_db():
-    # Tenta sincronizar ao carregar pela primeira vez na sessão
     if "db_synced" not in st.session_state:
         success = sync_down_from_sheets()
-        if success: 
-            st.session_state["db_synced"] = True
-            
+        if success: st.session_state["db_synced"] = True
     if not os.path.exists(DB_FILE): return {}
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f:
@@ -141,23 +136,16 @@ def save_db(db_data):
         os.replace(temp_file, DB_FILE)
     except Exception as e:
         st.error(f"Erro salvamento local: {e}")
-    
-    # Sincroniza com a nuvem em background
     try: sync_up_to_sheets(db_data)
     except: pass 
 
-# --- AUTO-CRIAÇÃO COM PROTEÇÃO DE DADOS ---
+# --- AUTO-CRIAÇÃO ---
 def ensure_users_exist():
-    # Força sync antes de verificar usuários para evitar criar duplicatas vazias
-    sync_down_from_sheets()
-    
     db = load_db()
     data_changed = False
     vip_users = { "fux_concurseiro": "Senha128", "steissy": "Mudar123", "JuOlebar": "Mudar123" }
-    
     for user, default_pass in vip_users.items():
         if user not in db:
-            # Só cria se realmente não existir nem no local nem na nuvem recém-baixada
             db[user] = {
                 "password": default_pass,
                 "logs": [],
@@ -168,13 +156,11 @@ def ensure_users_exist():
                 "mod_message": ""
             }
             data_changed = True
-            
     if data_changed: save_db(db)
 
-# Executa na inicialização
 ensure_users_exist()
 
-# --- ESTILOS CSS (GHOSTWHITE & NAVAJOWHITE) ---
+# --- ESTILOS CSS (MINTCREAM & NAVAJOWHITE) ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -189,8 +175,8 @@ st.markdown("""
         border-radius: 5px;
     }
 
-    /* CORES GERAIS */
-    .stApp { background-color: #F8F8FF; color: #333333; }
+    /* CORES GERAIS - Alterado para MINTCREAM */
+    .stApp { background-color: #F5FFFA; color: #333333; }
     .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #4A4A4A !important; }
     
     h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
@@ -325,9 +311,7 @@ def calculate_streak(logs):
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
-    if os.path.exists(LOGO_FILE):
-        with c2: 
-            st.image(LOGO_FILE)
+    if os.path.exists(LOGO_FILE): with c2: st.image(LOGO_FILE)
     st.title("🏛️ Mentor SpartaJus")
     st.markdown("<h3 style='text-align:center; color:#8B4513;'>Login</h3>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🔑 Entrar", "📝 Registrar", "🔄 Alterar Senha"])
@@ -393,13 +377,6 @@ def main_app():
     with st.sidebar:
         if os.path.exists(LOGO_FILE): st.image(LOGO_FILE)
         st.write(f"### Olá, {user}")
-        
-        # RESTAURAÇÃO DO STATUS DO GOOGLE SHEETS
-        if SHEETS_AVAILABLE and get_google_credentials():
-            st.caption("🟢 Conectado à Nuvem (Google Sheets)")
-        else:
-            st.caption("🟠 Modo Offline (Local JSON)")
-
         st.markdown("""
         <div style='background-color: rgba(255, 255, 255, 0.5); padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #DEB887; font-size: 0.85em; color: #5C4033;'>
             <strong>🎖️ PATENTES DO SPARTAJUS:</strong><br>
@@ -475,6 +452,7 @@ def main_app():
         c_tree, c_form = st.columns([1, 1])
         with c_tree:
             st.subheader("Árvore da Constância")
+            # Correção: linha única para o SVG
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             if user_data.get('mod_message'):
                 st.markdown(f"<div class='private-message'><strong>📨 MENSAGEM DO MENTOR:</strong><br>{user_data['mod_message']}</div>", unsafe_allow_html=True)
