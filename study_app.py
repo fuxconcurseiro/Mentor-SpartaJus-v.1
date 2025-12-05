@@ -984,14 +984,81 @@ def main_app():
     # --- TAB 5: AGENDA ---
     with tabs[4]:
         st.header("📅 Agenda")
-        plan_date = st.date_input("Data:", format="DD/MM/YYYY")
+        
+        # Seção de Planejamento (existente)
+        st.subheader("Traçar Meta")
+        # Default para amanhã, conforme solicitado
+        plan_date = st.date_input("Data Alvo:", value=get_today_br() + timedelta(days=1), format="DD/MM/YYYY") 
         pk = plan_date.strftime("%Y-%m-%d")
         curr = user_data['agendas'].get(pk, "")
-        nt = st.text_area("Plano:", value=curr, placeholder="Ex. Fazer 2 cadernos do TEC de Constitucional e 1 de Penal.")
-        if st.button("Salvar Plano"):
-            user_data['agendas'][pk] = nt
-            save_current_user_data()
-            st.success("Plano traçado!")
+        nt = st.text_area("Plano para este dia:", value=curr, placeholder="Ex. Fazer 2 cadernos do TEC de Constitucional e 1 de Penal.", height=150)
+        
+        if st.button("💾 Salvar Meta"):
+            if nt.strip():
+                user_data['agendas'][pk] = nt
+                save_current_user_data()
+                st.success("Meta definida!")
+            else:
+                if pk in user_data['agendas']:
+                    del user_data['agendas'][pk]
+                    save_current_user_data()
+                    st.success("Meta removida.")
+                else:
+                    st.warning("A meta está vazia.")
+
+        st.divider()
+        
+        # Seção de Estatísticas (nova)
+        st.subheader("📊 Consistência do Planejamento")
+        
+        # 1. Identificar meses disponíveis
+        agendas_keys = list(user_data['agendas'].keys())
+        # Convert keys to date objects to sort and extract months
+        dates = []
+        for k in agendas_keys:
+            try:
+                dates.append(datetime.strptime(k, "%Y-%m-%d").date())
+            except: pass
+            
+        # Add current month to ensure it's always an option
+        today = get_today_br()
+        if today not in dates:
+            dates.append(today)
+            
+        # Extract unique months (YYYY-MM)
+        unique_months = sorted(list(set([d.strftime("%Y-%m") for d in dates])), reverse=True)
+        
+        # Formatter for display
+        def format_month(m_str):
+            y, m = m_str.split('-')
+            return f"{m}/{y}"
+            
+        # Selectbox
+        selected_month_str = st.selectbox("Selecione o Mês:", unique_months, format_func=format_month)
+        
+        # Count days planned in selected month
+        count_planned = 0
+        if selected_month_str:
+            y_sel, m_sel = selected_month_str.split('-')
+            for k, v in user_data['agendas'].items():
+                if v and v.strip(): # Check if not empty
+                    try:
+                        kd = datetime.strptime(k, "%Y-%m-%d").date()
+                        if kd.year == int(y_sel) and kd.month == int(m_sel):
+                            count_planned += 1
+                    except: pass
+        
+        # Display Metric
+        st.metric(label=f"Dias Planejados em {format_month(selected_month_str)}", value=f"{count_planned} dias")
+        
+        # Visual feedback (Progress bar)
+        year = int(selected_month_str.split('-')[0])
+        month = int(selected_month_str.split('-')[1])
+        _, num_days = calendar.monthrange(year, month)
+        
+        progress = min(count_planned / num_days, 1.0)
+        st.progress(progress)
+        st.caption(f"Você planejou {int(progress*100)}% dos dias deste mês.")
 
     # --- TAB 6: COMPORTAMENTO ---
     with tabs[5]:
