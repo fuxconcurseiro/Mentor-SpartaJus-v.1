@@ -582,14 +582,25 @@ def main_app():
     # --- BODY PRINCIPAL ---
     st.title("🏛️ Mentor SpartaJus")
     
-    # Barra de Progresso
+    # Barra de Progresso Melhorada
     prog = total_q % 5000
     perc = (prog / 5000) * 100
     rem_q = 5000 - prog
     
     st.markdown(f"""
-    <div style="background-color: #FFF; border: 1px solid #DEB887; border-radius: 12px; padding: 4px; margin-bottom: 20px;">
-        <div style="width: {perc}%; background-color: #047a0a; height: 24px; border-radius: 8px; text-align: center; color: white; font-size: 0.8em; line-height: 24px;">{perc:.1f}%</div>
+    <div style="background-color: #F8F8FF; padding: 10px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #DEB887; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <div style="color: #8B4513; font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between; font-size: 1.1em;">
+            <span>🛡️ Progresso da Patente</span>
+            <span>Próximo nível em: {rem_q} questões</span>
+        </div>
+        <div style="background-color: #EEE; border: 2px solid #8B4513; border-radius: 20px; height: 35px; position: relative; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);">
+            <div style="width: {perc}%; background: linear-gradient(90deg, #047a0a, #32CD32); height: 100%; border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 2px 0 5px rgba(0,0,0,0.2); min-width: 40px;">
+                <span style="color: white; font-weight: bold; text-shadow: 1px 1px 2px #333; font-size: 1.1em;">{perc:.1f}%</span>
+            </div>
+            <div style="position: absolute; right: 15px; top: 0; bottom: 0; display: flex; align-items: center; color: #666; font-size: 0.9em; font-weight: bold; opacity: 0.8;">
+                Faltam {rem_q}
+            </div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
     
@@ -632,7 +643,11 @@ def main_app():
                     quest_df, 
                     num_rows="dynamic", 
                     column_config={
-                        "Matéria": st.column_config.SelectboxColumn("Matéria", options=user_data['subjects_list'], required=True), 
+                        "Matéria": st.column_config.SelectboxColumn(
+                            "Matéria", 
+                            options=[""] + user_data['subjects_list'], # Adicionado opção vazia
+                            required=False
+                        ), 
                         "Qtd": st.column_config.NumberColumn("Qtd", min_value=0, step=1)
                     }, 
                     use_container_width=True
