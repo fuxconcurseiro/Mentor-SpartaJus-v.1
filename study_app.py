@@ -160,7 +160,7 @@ def ensure_users_exist():
 
 ensure_users_exist()
 
-# --- ESTILOS CSS (GHOSTWHITE & NAVAJOWHITE) ---
+# --- ESTILOS CSS (IVORY & NAVAJOWHITE) ---
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -175,8 +175,8 @@ st.markdown("""
         border-radius: 5px;
     }
 
-    /* CORES GERAIS */
-    .stApp { background-color: #F8F8FF; color: #333333; }
+    /* CORES GERAIS - IVORY (#FFFFF0) */
+    .stApp { background-color: #FFFFF0; color: #333333; }
     .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #4A4A4A !important; }
     
     h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
@@ -217,14 +217,56 @@ st.markdown("""
     .mod-message { background-color: #FFFaf0; border-left: 5px solid #DAA520; padding: 15px; margin-top: 15px; border-radius: 8px; color: #333; border: 1px solid #EEE; }
     .private-message { background-color: #FFF0F5; border: 2px dashed #C71585; padding: 15px; margin-bottom: 20px; border-radius: 8px; color: #800000; }
 
-    /* THRONE RANKING */
-    .throne-container { display: flex; flex-direction: column; align-items: center; width: 100%; }
-    .throne-item { width: 80%; margin: 10px 0; padding: 15px; border-radius: 8px; text-align: center; position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-    
-    .rank-1 { background: linear-gradient(180deg, #FFD700 0%, #FDB931 100%); border: 3px solid #DAA520; transform: scale(1.1); z-index: 10; color: #4B3621; }
-    .rank-1::before { content: '👑'; font-size: 2em; display: block; margin-bottom: -10px;}
-    .rank-2 { background: linear-gradient(180deg, #E0E0E0 0%, #C0C0C0 100%); border: 2px solid #A9A9A9; width: 70%; color: #333; }
-    .rank-3 { background: linear-gradient(180deg, #CD7F32 0%, #A0522D 100%); border: 2px solid #8B4513; width: 60%; color: #FFF; }
+    /* THRONE RANKING (Vertical) */
+    .throne-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        gap: 15px;
+    }
+    .throne-card {
+        width: 90%;
+        border-radius: 10px;
+        text-align: center;
+        position: relative;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        padding: 20px;
+        margin-bottom: 10px;
+    }
+    .rank-gold {
+        background: linear-gradient(180deg, #FFD700 0%, #FFC125 100%);
+        border: 4px solid #DAA520;
+        color: #4B3621;
+        transform: scale(1.05);
+        z-index: 5;
+    }
+    .rank-gold::after {
+        content: '👑';
+        position: absolute;
+        top: -25px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 40px;
+    }
+    .rank-silver {
+        background: linear-gradient(180deg, #E0E0E0 0%, #BEBEBE 100%);
+        border: 3px solid #A9A9A9;
+        color: #333;
+        width: 85%;
+    }
+    .rank-bronze {
+        background: linear-gradient(180deg, #CD7F32 0%, #A0522D 100%);
+        border: 3px solid #8B4513;
+        color: #FFF;
+        width: 80%;
+    }
+    .rank-common {
+        background: #FFF;
+        border: 1px solid #DEB887;
+        width: 75%;
+        color: #555;
+    }
 
     .stImage img { width: 100%; mix-blend-mode: multiply; }
     
@@ -280,8 +322,15 @@ def generate_tree_svg(branches):
     return f"""<svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />{leaves_svg}<text x="50" y="95" font-size="4" text-anchor="middle" fill="#555">Ramos Vivos: {branches}</text></svg>"""
 
 def get_patent(total_questions):
-    patentes = ["O Maltrapilho (fase iniciante)", "O Comum (fase q banca te humilha)", "O Cadastrado (fase mediana)", "O Altivo (fase da perseverança)", "O Espartano (fase da autonomia)"]
-    return patentes[min(int(total_questions / 5000), 4)]
+    patentes = [
+        "1ª O Maltrapilho (fase iniciante)",
+        "2ª O Comum (fase q banca te humilha)",
+        "3ª O Cadastrado (fase mediana)",
+        "4ª O Altivo (fase da perseverança)",
+        "5ª O Espartano (fase da autonomia)"
+    ]
+    index = min(int(total_questions / 5000), 4)
+    return patentes[index]
 
 def get_stars(total_pages):
     raw_bronze = int(total_pages / 1000)
@@ -311,9 +360,7 @@ def calculate_streak(logs):
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
-    if os.path.exists(LOGO_FILE): 
-        with c2: 
-            st.image(LOGO_FILE)
+    if os.path.exists(LOGO_FILE): with c2: st.image(LOGO_FILE)
     st.title("🏛️ Mentor SpartaJus")
     st.markdown("<h3 style='text-align:center; color:#8B4513;'>Login</h3>", unsafe_allow_html=True)
     tab1, tab2, tab3 = st.tabs(["🔑 Entrar", "📝 Registrar", "🔄 Alterar Senha"])
@@ -380,7 +427,7 @@ def main_app():
         if os.path.exists(LOGO_FILE): st.image(LOGO_FILE)
         st.write(f"### Olá, {user}")
         
-        # STATUS DO GOOGLE SHEETS (Recuperado)
+        # STATUS DO GOOGLE SHEETS
         if SHEETS_AVAILABLE and get_google_credentials():
             st.caption("🟢 Conectado à Nuvem (Google Sheets)")
         else:
@@ -399,12 +446,7 @@ def main_app():
             del st.session_state['user']
             st.rerun()
         st.divider()
-        st.markdown(f"### 💾 Backup: {get_now_br().strftime('%H:%M')}")
-        if os.path.exists(DB_FILE):
-            with open(DB_FILE, "r", encoding="utf-8") as f:
-                st.download_button("Baixar Dados (JSON)", f, f"backup_{get_now_br().strftime('%Y%m%d_%H%M')}.json", "application/json")
         
-        st.divider()
         with st.expander("📚 Gerenciar Matérias"):
             new_sub = st.text_input("Nova Matéria:")
             if st.button("Adicionar") and new_sub:
@@ -437,6 +479,12 @@ def main_app():
                         st.session_state['user'] = ADMIN_USER
                         st.session_state['user_data'] = load_db()[ADMIN_USER]
                         st.rerun()
+
+        st.divider()
+        st.markdown(f"### 💾 Backup: {get_now_br().strftime('%H:%M')}")
+        if os.path.exists(DB_FILE):
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                st.download_button("Baixar Dados (JSON)", f, f"backup_{get_now_br().strftime('%Y%m%d_%H%M')}.json", "application/json")
 
     st.title("🏛️ Mentor SpartaJus")
     prog = total_q % 5000
@@ -607,12 +655,39 @@ def main_app():
             q = sum([l.get('questoes', 0) for l in d.get('logs', [])])
             ur.append({"User": u, "Q": q, "Patente": get_patent(q)})
         ur.sort(key=lambda x: x['Q'], reverse=True)
-        st.markdown("<div class='throne-container'>", unsafe_allow_html=True)
+        st.markdown("<div class='throne-wrapper'>", unsafe_allow_html=True)
         for i, p in enumerate(ur):
-            cls = "rank-1" if i==0 else "rank-2" if i==1 else "rank-3" if i==2 else "throne-item"
-            mdl = "👑" if i==0 else "🥈" if i==1 else "🥉" if i==2 else f"#{i+1}"
-            if i > 2: st.markdown(f"<div style='background: #FFF; border: 1px solid #DEB887; padding: 10px; margin: 5px; border-radius: 5px; width: 80%; text-align:center; color: #555;'><strong>{i+1}. {p['User']}</strong> - {p['Q']} Questões<br><small>{p['Patente']}</small></div>", unsafe_allow_html=True)
-            else: st.markdown(f"<div class='{cls} throne-item'><h3>{mdl} {p['User']}</h3><p style='margin:0; font-weight:bold;'>{p['Q']} Questões</p><small>{p['Patente']}</small></div>", unsafe_allow_html=True)
+            rank_style = ""
+            medal = f"#{i+1}"
+            
+            if i == 0:
+                rank_style = "rank-card-gold"
+                medal = "👑 REI/RAINHA"
+            elif i == 1:
+                rank_style = "rank-card-silver"
+                medal = "🥈 PRÍNCIPE/PRINCESA"
+            elif i == 2:
+                rank_style = "rank-card-bronze"
+                medal = "🥉 CAVALEIRO"
+            else:
+                rank_style = "throne-item rank-common"
+            
+            if i < 3:
+                st.markdown(f"""
+                <div class='{rank_style}'>
+                    <h2 style='margin:0; color:inherit;'>{medal}</h2>
+                    <h1 style='margin:5px; color:inherit;'>{p['User']}</h1>
+                    <h3 style='margin:0; color:inherit;'>{p['Q']} Questões</h3>
+                    <small>{p['Patente']}</small>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div class='{rank_style}'>
+                    <strong>{i+1}. {p['User']}</strong> - {p['Q']} Questões | {p['Patente']}
+                </div>
+                """, unsafe_allow_html=True)
+                
         st.markdown("</div>", unsafe_allow_html=True)
 
     with tabs[3]:
