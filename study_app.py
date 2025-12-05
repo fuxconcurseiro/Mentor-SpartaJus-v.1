@@ -331,7 +331,7 @@ def generate_tree_svg(branches):
         cy = trunk_y + random.randint(-20 - int(branches/2), 10)
         r = random.randint(3, 6)
         color = "#047a0a" # Verde
-        leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}" opacity="0.9" />'
+        leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}" opacity="0.8" />'
 
     return f"""
     <svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -342,8 +342,15 @@ def generate_tree_svg(branches):
     """
 
 def get_patent(total_questions):
-    patentes = ["Andarilho de Vade Mecum", "Saco de Pancada da Banca", "Cadastro de Reserva", "Titã Nota de Corte", "Espartano Jurídico"]
-    return patentes[min(int(total_questions / 5000), 4)]
+    patentes = [
+        "O Maltrapilho (fase iniciante)",
+        "O Comum (fase q banca te humilha)",
+        "O Cadastrado (fase mediana)",
+        "O Altivo (fase da perseverança)",
+        "O Espartano (fase da autonomia)"
+    ]
+    index = min(int(total_questions / 5000), 4)
+    return patentes[index]
 
 def get_stars(total_pages):
     raw_bronze = int(total_pages / 1000)
@@ -455,7 +462,12 @@ def main_app():
         
         st.markdown("""
         <div style='background-color: rgba(255, 255, 255, 0.5); padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #DEB887; font-size: 0.85em; color: #5C4033;'>
-            <strong>🎖️ PATENTES:</strong><br>* Andarilho (até 5k)<br>** Saco de Pancada (5k-10k)<br>*** Reserva (10k-15k)<br>**** Titã (15k-20k)<br>***** Espartano (20k-25k)
+            <strong>🎖️ PATENTES DO SPARTAJUS:</strong><br><br>
+            1ª O Maltrapilho (fase iniciante)<br>
+            2ª O Comum (fase q banca te humilha)<br>
+            3ª O Cadastrado (fase mediana)<br>
+            4ª O Altivo (fase da perseverança)<br>
+            5ª O Espartano (fase da autonomia)
         </div>""", unsafe_allow_html=True)
         
         if is_real_admin or is_admin_mode:
@@ -483,7 +495,7 @@ def main_app():
             if 'admin_user' in st.session_state: del st.session_state['admin_user']
             st.rerun()
         st.divider()
-        st.markdown("### 💾 Backup de Segurança")
+        st.markdown(f"### 💾 Backup: {get_now_br().strftime('%H:%M')}")
         if os.path.exists(DB_FILE):
             with open(DB_FILE, "r", encoding="utf-8") as f:
                 st.download_button("Baixar Dados (JSON)", f, f"backup_{get_now_br().strftime('%Y%m%d_%H%M')}.json", "application/json")
@@ -511,7 +523,7 @@ def main_app():
     remaining = 5000 - progress_val
     st.markdown(f"""
     <div style="background-color: #FFF; border: 1px solid #DEB887; border-radius: 12px; padding: 4px;">
-        <div style="width: {percent_val}%; background-color: #047a0a; height: 24px; border-radius: 8px; text-align: center; color: white; font-size: 0.8em; line-height: 24px;">{perc:.1f}%</div>
+        <div style="width: {percent_val}%; background-color: #047a0a; height: 24px; border-radius: 8px; text-align: center; color: white; font-size: 0.8em; line-height: 24px;">{percent_val:.1f}%</div>
     </div>
     <div style="display:flex; justify-content:space-between; font-size:0.8em; color:#555;"><span>Atual: {progress_val}</span><span>Falta: {remaining}</span></div>
     """, unsafe_allow_html=True)
@@ -519,10 +531,10 @@ def main_app():
     c1, c2 = st.columns([2, 1])
     with c1: st.markdown(f"<div class='rank-card'><h2>{user.upper()}</h2><h3>🛡️ {current_patent}</h3><p>Total: {total_questions} | 🔥 Fogo: {streak} dias</p></div>", unsafe_allow_html=True)
     with c2: 
-        star_html = "".join(["🟡"]*g_stars + ["⚪"]*s_stars + ["🟤"]*b_stars) or "<span style='color:#a0b0c0'>Sem estrelas</span>"
-        st.markdown(f"<div class='metric-card'><h4>⭐ Estrelas de Leitura</h4><div class='star-container'>{star_html}</div><p style='font-size: 0.8em; margin-top: 5px;'>Total Páginas: {total_pages}</p></div>", unsafe_allow_html=True)
+        star_html = "".join(["🟡"]*g_stars + ["⚪"]*s_stars + ["🟤"]*b_stars) or "Sem estrelas"
+        st.markdown(f"<div class='metric-card'><h4>⭐ Leitura</h4><div style='font-size:1.5em;'>{star_html}</div><p>Páginas: {total_pages}</p></div>", unsafe_allow_html=True)
 
-    tabs = ["📊 Diário & Árvore", "📈 Análise e Dashboard", "🏆 Ranking Global", "📢 Alertas do Mentor", "📅 Agenda de Guerra", "🦁 Comportamento"]
+    tabs = ["📊 Diário", "📈 Dashboard", "🏆 Ranking", "📢 Avisos", "📅 Agenda", "🦁 Comportamento"]
     if user == ADMIN_USER: tabs.append("🛡️ Moderação")
     current_tabs = st.tabs(tabs)
 
@@ -689,8 +701,7 @@ def main_app():
                 st.rerun()
         else: st.info("Sem registros.")
 
-    # ABA 3: RANKING GLOBAL
-    with current_tabs[2]:
+    with tabs[2]:
         st.header("🏆 Hall da Fama Real")
         db = load_db()
         ur = []
@@ -707,93 +718,25 @@ def main_app():
             else: st.markdown(f"<div class='{cls} throne-item'><h3>{mdl} {p['User']}</h3><p style='margin:0; font-weight:bold;'>{p['Q']} Questões</p><small>{p['Patente']}</small></div>", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ABA 4: ALERTAS
-    with current_tabs[3]:
-        st.header("📢 Alertas do Mentor")
+    with tabs[3]:
+        st.header("📢 Avisos")
         db = load_db()
-        if "global_alerts" not in db: db["global_alerts"] = []
-        c_gl, c_pr = st.columns([1, 1])
-        with c_gl:
-            st.subheader("🌍 Mural Global")
-            if user == ADMIN_USER:
-                with st.expander("Novo Alerta"):
-                    nat = st.text_area("Texto:")
-                    if st.button("Publicar"):
-                        db["global_alerts"].insert(0, {"id": str(time.time()), "date": get_now_br().strftime("%d/%m/%Y %H:%M"), "text": nat, "author": user})
-                        save_db(db)
-                        st.rerun()
-            alts = db.get("global_alerts", [])
-            if not alts: st.info("Vazio.")
-            for a in alts:
-                st.markdown(f"<div class='mod-message'><strong>{a['date']}</strong><br>{a['text']}</div>", unsafe_allow_html=True)
-                if user == ADMIN_USER and st.button("🗑️", key=a['id']):
-                    db["global_alerts"].remove(a)
-                    save_db(db)
-                    st.rerun()
-        with c_pr:
-            st.subheader("📨 Mensagens Privadas")
-            if user == ADMIN_USER:
-                st.markdown("**Enviar**")
-                usrs = [k for k in db.keys() if k not in ["global_alerts", ADMIN_USER]]
-                tgt = st.selectbox("Para:", usrs, key="mt")
-                if tgt:
-                    curr = db[tgt].get('mod_message', '')
-                    if curr: st.warning(f"Atual: {curr}")
-                    new_m = st.text_area("Msg:")
-                    if st.button("Enviar"):
-                        db[tgt]['mod_message'] = new_m
-                        save_db(db)
-                        st.success("Enviado!")
-            else:
-                mm = user_data.get('mod_message', '')
-                if mm: st.markdown(f"<div class='private-message'><h3>⚠️ MENSAGEM</h3>{mm}</div>", unsafe_allow_html=True)
-                else: st.info("Sem mensagens.")
+        alerts = db.get("global_alerts", [])
+        if not alerts: st.info("Silêncio.")
+        for a in alerts: st.markdown(f"<div class='mod-message'><strong>{a['date']}</strong><br>{a['text']}</div>", unsafe_allow_html=True)
 
-    # ABA 5: AGENDA
-    with current_tabs[4]:
-        st.header("📅 Agenda & Metas")
-        c_plan, c_stats = st.columns([2, 1])
-        with c_plan:
-            st.subheader("Plano")
-            plan_date = st.date_input("Data Planejada:", value=get_today_br() + timedelta(days=1), format="DD/MM/YYYY")
-            pk = plan_date.strftime("%Y-%m-%d")
-            curr = user_data['agendas'].get(pk, "")
-            nt = st.text_area("Objetivos:", value=curr, placeholder="Ex: Fazer 2 cadernos do TEC...")
-            if st.button("Salvar Plano"):
-                if nt.strip(): user_data['agendas'][pk] = nt
-                elif pk in user_data['agendas']: del user_data['agendas'][pk]
-                save_current_user_data()
-                st.success("Salvo!")
-                st.rerun()
-        with c_stats:
-            st.subheader("Disciplina Mensal")
-            today = get_today_br()
-            cm = today.month
-            cy = today.year
-            nd = calendar.monthrange(cy, cm)[1]
-            dp = 0
-            st.markdown(f"**{calendar.month_name[cm]} {cy}**")
-            cols = st.columns(7)
-            d_nms = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
-            for i, dn in enumerate(d_nms): cols[i].markdown(f"<div style='text-align:center;font-size:0.8em;'>{dn}</div>", unsafe_allow_html=True)
-            msw = date(cy, cm, 1).weekday()
-            chg = [f"<div class='cal-day empty'></div>"] * msw
-            for d in range(1, nd + 1):
-                d_str = date(cy, cm, d).strftime("%Y-%m-%d")
-                hp = d_str in user_data['agendas'] and user_data['agendas'][d_str].strip() != ""
-                if hp: dp += 1
-                cls = "cal-day planned" if hp else "cal-day"
-                icon = "✅" if hp else ""
-                chg.append(f"<div class='{cls}'>{d}<br>{icon}</div>")
-            for i in range(0, len(chg), 7):
-                rc = st.columns(7)
-                for j in range(7):
-                    if i+j < len(chg): rc[j].markdown(chg[i+j], unsafe_allow_html=True)
-            st.divider()
-            st.metric("Dias Planejados", f"{dp} / {nd}")
+    with tabs[4]:
+        st.header("📅 Agenda")
+        plan_date = st.date_input("Data:", format="DD/MM/YYYY")
+        pk = plan_date.strftime("%Y-%m-%d")
+        curr = user_data['agendas'].get(pk, "")
+        nt = st.text_area("Plano:", value=curr, placeholder="Ex. Fazer 2 cadernos do TEC de Constitucional e 1 de Penal.")
+        if st.button("Salvar Plano"):
+            user_data['agendas'][pk] = nt
+            save_current_user_data()
+            st.success("Plano traçado!")
 
-    # ABA 6: COMPORTAMENTO
-    with current_tabs[5]:
+    with tabs[5]:
         st.header("🦁 Comportamento")
         if user_data['logs']:
             df_beh = pd.DataFrame(user_data['logs'])
@@ -819,9 +762,8 @@ def main_app():
             c4.metric("📚 Leitura", f"{cr} dias")
         else: st.info("Sem dados.")
 
-    # ABA 7: MODERAÇÃO
     if user == ADMIN_USER:
-        with current_tabs[6]:
+        with tabs[6]:
             st.header("🛡️ Moderação")
             ca, cd = st.columns(2)
             with ca:
