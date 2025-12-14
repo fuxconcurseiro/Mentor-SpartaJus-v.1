@@ -851,13 +851,15 @@ def main_app():
             # Intersecção para garantir que colunas existam
             cols_final = [c for c in cols_to_show if c in df_hist.columns]
             
+            # --- CORREÇÃO APLICADA AQUI ---
+            # Removido 'disabled=True' da coluna questoes e adicionado min_value
             edited = st.data_editor(
                 df_hist[cols_final],
                 use_container_width=True, num_rows="dynamic", key="hist_ed",
                 column_config={
                     "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
                     "detalhes_str": st.column_config.TextColumn("Detalhes (Mat: Qtd)", help="Ex: Const: 10, Penal: 5"),
-                    "questoes": st.column_config.NumberColumn("Total Q", disabled=True),
+                    "questoes": st.column_config.NumberColumn("Total Q", min_value=0, step=1), # Agora editável
                     "acordou": st.column_config.TextColumn("Acordou (HH:MM)"),
                     "dormiu": st.column_config.TextColumn("Dormiu (HH:MM)")
                 }
@@ -868,7 +870,12 @@ def main_app():
                 for _, r in edited.iterrows():
                     d_str_val = r['detalhes_str']
                     new_dets = {}
-                    tq = 0
+                    tq_calc = 0
+                    
+                    # Tenta extrair a quantidade manual que o usuário digitou na coluna
+                    try: manual_q = int(r.get('questoes', 0))
+                    except: manual_q = 0
+
                     if d_str_val:
                         parts = str(d_str_val).split(',')
                         for p in parts:
@@ -877,14 +884,19 @@ def main_app():
                                     m, q = p.split(':')
                                     qtd = int(q.strip())
                                     new_dets[m.strip()] = qtd
-                                    tq += qtd
+                                    tq_calc += qtd
                                 except: pass
                     
+                    # --- LÓGICA DE PREVENÇÃO DE ERROS ---
+                    # Se a soma dos detalhes for maior que 0, usamos ela (consistência).
+                    # Se não houver detalhes (tq_calc == 0), respeitamos o valor manual inserido na coluna "Total Q".
+                    final_q = tq_calc if tq_calc > 0 else manual_q
+
                     data_val = r['data']
                     if isinstance(data_val, (date, datetime)): data_val = data_val.strftime("%Y-%m-%d")
                     
                     # Lógica Automática: Se tem página ou questão, estudou = True
-                    is_study = (int(r['paginas']) > 0 or tq > 0)
+                    is_study = (int(r['paginas']) > 0 or final_q > 0)
 
                     nl.append({
                         "data": data_val, 
@@ -892,7 +904,7 @@ def main_app():
                         "dormiu": str(r.get('dormiu', '22:00')), 
                         "paginas": int(r['paginas']), 
                         "series": int(r['series']), 
-                        "questoes": tq, 
+                        "questoes": final_q, 
                         "questoes_detalhadas": new_dets, 
                         "estudou": is_study
                     })
