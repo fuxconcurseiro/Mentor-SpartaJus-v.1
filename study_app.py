@@ -554,21 +554,8 @@ def main_app():
             st.rerun()
             
         st.divider()
-        with st.expander("📚 Gerenciar Matérias"):
-            new_sub = st.text_input("Nova Matéria:")
-            if st.button("Adicionar") and new_sub:
-                if new_sub not in user_data['subjects_list']:
-                    user_data['subjects_list'].append(new_sub)
-                    save_current_user_data()
-                    st.success(f"{new_sub} adicionada!")
-                    time.sleep(0.5)
-                    st.rerun()
-            
-            rem_sub = st.selectbox("Remover Matéria:", [""] + user_data['subjects_list'])
-            if st.button("Remover") and rem_sub:
-                user_data['subjects_list'].remove(rem_sub)
-                save_current_user_data()
-                st.rerun()
+        # --- ATENÇÃO: GERENCIAR MATÉRIAS REMOVIDO DAQUI PARA UMA ABA PRÓPRIA ---
+        # ISSO CORRIGE O ERRO DE VISUALIZAÇÃO NO MOBILE
         
         if is_real_admin or is_admin_mode:
             with st.expander("🛡️ PAINEL DO MODERADOR", expanded=True):
@@ -628,7 +615,8 @@ def main_app():
         stars = "".join(["🟡"]*g + ["⚪"]*s + ["🟤"]*b) or "Sem estrelas"
         st.markdown(f"<div class='metric-card'><h4>⭐ Leitura</h4><div style='font-size:1.5em;'>{stars}</div><p>Páginas: {total_p}</p></div>", unsafe_allow_html=True)
 
-    tabs = st.tabs(["📊 Diário", "📈 Dashboard", "🏆 Ranking", "📢 Avisos", "📅 Agenda", "🦁 Comportamento"] + (["🛡️ Admin"] if user==ADMIN_USER else []))
+    # --- ATUALIZAÇÃO: ADICIONADA ABA DE MATÉRIAS ---
+    tabs = st.tabs(["📊 Diário", "📈 Dashboard", "🏆 Ranking", "📢 Avisos", "📅 Agenda", "🦁 Comportamento", "📚 Matérias"] + (["🛡️ Admin"] if user==ADMIN_USER else []))
 
     # --- TAB 1: DIÁRIO ---
     with tabs[0]:
@@ -1203,9 +1191,43 @@ def main_app():
                 c4.metric("📚 Leitura", f"{cr} dias")
         else: st.info("Sem dados suficientes.")
 
-    # --- TAB 7: ADMIN ---
+    # --- TAB 7: MATÉRIAS (NOVA) ---
+    with tabs[6]:
+        st.header("📚 Gerenciar Matérias")
+        st.caption("Adicione ou remova disciplinas do seu plano de estudo.")
+        
+        c_add, c_rem = st.columns(2)
+        
+        with c_add:
+            st.subheader("Adicionar")
+            new_sub = st.text_input("Nova Matéria:")
+            if st.button("➕ Adicionar Matéria", type="primary") and new_sub:
+                if new_sub not in user_data['subjects_list']:
+                    user_data['subjects_list'].append(new_sub)
+                    save_current_user_data()
+                    st.success(f"{new_sub} adicionada com sucesso!")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.warning("Essa matéria já existe na sua lista.")
+        
+        with c_rem:
+            st.subheader("Remover")
+            rem_sub = st.selectbox("Selecione para remover:", [""] + user_data['subjects_list'])
+            if st.button("🗑️ Remover Matéria") and rem_sub:
+                user_data['subjects_list'].remove(rem_sub)
+                save_current_user_data()
+                st.success(f"{rem_sub} removida!")
+                time.sleep(0.5)
+                st.rerun()
+                
+        st.divider()
+        st.markdown("### 📋 Lista Atual")
+        st.write(", ".join(user_data['subjects_list']))
+
+    # --- TAB 8: ADMIN (SE TIVER PERMISSÃO) ---
     if user == ADMIN_USER:
-        with tabs[6]:
+        with tabs[7]:
             st.header("🛡️ Moderação")
             ca, cd = st.columns(2)
             with ca:
