@@ -12,7 +12,7 @@ import base64
 import shutil
 import hashlib
 import calendar
-import colorsys
+import colorsys # Importação necessária para gerar cores
 from contextlib import contextmanager
 
 # Tenta importar bibliotecas do Google Sheets.
@@ -37,13 +37,6 @@ LOGO_FILE = "logo_spartajus.jpg"
 ADMIN_USER = "fux_concurseiro" 
 SHEET_NAME = "SpartaJus_DB" 
 ENCRYPTED_KEY_LOCAL = "QUl6YVN5RFI1VTdHeHNCZVVVTFE5M1N3UG9VNl9CaGl3VHZzMU9n"
-
-# --- PALETA DE CORES (NOVA DEFINIÇÃO) ---
-COLOR_BG = "#FFFFF0"       # Ivory (Mantido)
-COLOR_ACCENT = "#6A1111"   # Bordô (Substitui Dourado/Marrom)
-COLOR_CONTRAST = "#111111" # Preto Grafite (Substitui Vermelhos)
-COLOR_TEXT_LIGHT = "#FFFFFF" # Texto sobre fundo escuro
-COLOR_TEXT_DARK = "#333333"  # Texto sobre fundo claro
 
 # --- FUSO HORÁRIO BRASÍLIA ---
 BRT = timezone(timedelta(hours=-3))
@@ -218,7 +211,7 @@ def ensure_users_exist():
 ensure_users_exist()
 
 # --- ESTILOS CSS ---
-# CORES MODIFICADAS: Dourado/Marrom -> #6A1111 (Bordô), Vermelhos -> #111111 (Grafite)
+# Mantive exatamente o original, apenas otimizei carregamento
 st.markdown("""
     <style>
     #MainMenu {visibility: hidden;}
@@ -228,73 +221,54 @@ st.markdown("""
     [data-testid="stHeader"] {background-color: rgba(0,0,0,0); visibility: visible;}
     
     [data-testid="stSidebarCollapsedControl"] {
-        color: #FFFFFF !important; 
-        background-color: #6A1111; /* Bordô */
+        color: #8B4513 !important; 
+        background-color: #FFDEAD; 
         border-radius: 5px;
     }
 
     /* CORES GERAIS - IVORY (#FFFFF0) */
     .stApp { background-color: #FFFFF0; color: #333333; }
-    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #111111 !important; }
+    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #4A4A4A !important; }
     
     h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
-        color: #6A1111 !important; /* Bordô - Títulos */
-        font-family: 'Georgia', serif; text-shadow: none;
+        color: #8B4513 !important; font-family: 'Georgia', serif; text-shadow: none;
     }
 
     /* SIDEBAR */
-    [data-testid="stSidebar"] { 
-        background-color: #6A1111; /* Bordô - Fundo Sidebar */
-        border-right: 2px solid #111111; 
-    }
-    /* Texto da Sidebar em branco para contraste com Bordô */
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] div, [data-testid="stSidebar"] label { 
-        color: #FFFFFF !important; 
+    [data-testid="stSidebar"] { background-color: #FFDEAD; border-right: 2px solid #DEB887; }
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { 
+        color: #5C4033 !important; 
     }
 
     /* INPUTS */
     .stTextInput > div > div > input, .stNumberInput > div > div > input, .stDateInput > div > div > input, .stTimeInput > div > div > input, .stSelectbox > div > div > div, .stTextArea > div > div > textarea, [data-testid="stMultiSelect"] {
-        background-color: #FFFFFF; color: #333333; border: 1px solid #6A1111; /* Borda Bordô */
+        background-color: #FFFFFF; color: #333333; border: 1px solid #DEB887;
     }
     ::placeholder { color: #999999 !important; }
 
     /* BUTTONS */
     .stButton>button {
-        background-color: #6A1111; /* Bordô */
-        color: #FFFFFF; /* Texto Branco */
-        border: 1px solid #111111; /* Borda Grafite */
-        border-radius: 6px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        background-color: #FFDEAD; color: #5C4033; border: 1px solid #8B4513; 
+        border-radius: 6px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .stButton>button:hover {
-        background-color: #4A0000; /* Bordô mais escuro no hover */
-        color: #FFFFFF; border-color: #000000;
+        background-color: #FFE4C4; color: #000000; border-color: #A0522D;
     }
 
     /* CARDS */
-    .metric-card { background-color: #FFF8DC; padding: 15px; border-radius: 10px; border: 1px solid #6A1111; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .metric-card h4, .metric-card p { color: #6A1111 !important; }
+    .metric-card { background-color: #FFF8DC; padding: 15px; border-radius: 10px; border: 1px solid #DEB887; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .metric-card h4, .metric-card p { color: #5C4033 !important; }
 
     .rank-card {
-        background: linear-gradient(135deg, #6A1111, #4A0000); /* Gradiente Bordô */
-        color: #FFFFFF !important; /* Texto Branco */
+        background: linear-gradient(135deg, #FFDEAD, #FFE4C4); color: #5C4033;
         padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px;
-        border: 2px solid #111111; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    }
-    .rank-card h2, .rank-card h3, .rank-card p { color: #FFFFFF !important; }
-
-    .mod-message { 
-        background-color: #FFFaf0; 
-        border-left: 5px solid #111111; /* Grafite (substitui Dourado) */
-        padding: 15px; margin-top: 15px; border-radius: 8px; color: #333; border: 1px solid #EEE; 
-    }
-    .private-message { 
-        background-color: #EEEEEE; /* Fundo cinza claro */
-        border: 2px dashed #111111; /* Borda Grafite (substitui Rosa) */
-        padding: 15px; margin-bottom: 20px; border-radius: 8px; 
-        color: #111111; /* Texto Grafite (substitui Vinho) */
+        border: 2px solid #DAA520; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
 
-    /* THRONE RANKING - ESTILO IMPERIAL (BORDÔ/GRAFITE) */
+    .mod-message { background-color: #FFFaf0; border-left: 5px solid #DAA520; padding: 15px; margin-top: 15px; border-radius: 8px; color: #333; border: 1px solid #EEE; }
+    .private-message { background-color: #FFF0F5; border: 2px dashed #C71585; padding: 15px; margin-bottom: 20px; border-radius: 8px; color: #800000; }
+
+    /* THRONE RANKING - ESTILO IMPERIAL */
     .throne-container { display: flex; flex-direction: column; align-items: center; width: 100%; gap: 15px; }
     
     .throne-card {
@@ -311,53 +285,48 @@ st.markdown("""
     }
     .throne-card:hover { transform: scale(1.02); }
 
-    /* RANK 1 - Ouro & Rubi -> AGORA: SANGUE E FERRO (Bordô e Grafite) */
+    /* RANK 1 - Ouro & Rubi (MANTIDO O LUXO) */
     .rank-1 {
-        background: radial-gradient(circle, #800000 20%, #6A1111 100%);
-        border: 4px double #111111; 
+        background: radial-gradient(circle, #FFF8DC 20%, #FFD700 100%);
+        border: 4px double #DAA520; 
         box-shadow: 
-            0 0 15px rgba(106, 17, 17, 0.6), 
-            inset 0 0 20px rgba(0, 0, 0, 0.5);
-        color: #FFFFFF;
+            0 0 15px rgba(255, 215, 0, 0.6), 
+            inset 0 0 20px rgba(139, 0, 0, 0.2);
+        color: #4B3621;
     }
-    /* Elementos decorativos do Rank 1 */
     .rank-1::before, .rank-1::after {
         content: ''; position: absolute; width: 12px; height: 12px; border-radius: 50%;
-        background: radial-gradient(circle at 30% 30%, #333333, #000000);
-        box-shadow: 0 0 5px #000000; border: 1px solid #6A1111;
+        background: radial-gradient(circle at 30% 30%, #FF4500, #8B0000);
+        box-shadow: 0 0 5px #FF0000; border: 1px solid #FFD700;
     }
     .rank-1::before { top: 10px; left: 10px; }
     .rank-1::after { top: 10px; right: 10px; }
-    
-    /* Texto dentro do Rank 1 precisa forçar branco */
-    .rank-1 h3, .rank-1 p, .rank-1 small, .rank-1 span { color: #FFFFFF !important; }
 
-    /* RANK 2 - Prata (Mantido, mas ajustado bordas) */
+    /* RANK 2 - Prata (SIMPLIFICADO) */
     .rank-2 {
         background: linear-gradient(180deg, #F8F8FF 0%, #C0C0C0 100%);
-        border: 2px solid #111111; /* Grafite */
+        border: 2px solid #708090;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         color: #333;
     }
 
-    /* RANK 3 - Bronze -> AGORA: Cobre escuro/Grafite */
+    /* RANK 3 - Bronze (SIMPLIFICADO) */
     .rank-3 {
-        background: linear-gradient(180deg, #FFF5EE 0%, #A9A9A9 100%);
-        border: 2px solid #6A1111; /* Bordô */
+        background: linear-gradient(180deg, #FFF5EE 0%, #CD7F32 100%);
+        border: 2px solid #8B4513;
         box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        color: #111111;
+        color: #3E2723;
     }
 
-    .laurel-text { font-family: 'Georgia', serif; font-weight: bold; font-size: 1.2em; display: flex; align-items: center; justify-content: center; gap: 10px; color: #FFFFFF !important; }
-    .laurel-icon { font-size: 1.5em; opacity: 0.8; color: #FFFFFF !important; }
+    .laurel-text { font-family: 'Georgia', serif; font-weight: bold; font-size: 1.2em; display: flex; align-items: center; justify-content: center; gap: 10px; }
+    .laurel-icon { font-size: 1.5em; opacity: 0.8; }
 
     .stImage img { width: 100%; mix-blend-mode: multiply; }
     
-    .cal-day { background-color: #FFFFFF; border: 1px solid #6A1111; border-radius: 4px; padding: 10px; text-align: center; margin: 2px; min-height: 60px; color: #333; }
-    .cal-day.planned { border: 2px solid #111111; background-color: #F0F0F0; }
+    .cal-day { background-color: #FFFFFF; border: 1px solid #DEB887; border-radius: 4px; padding: 10px; text-align: center; margin: 2px; min-height: 60px; color: #333; }
+    .cal-day.planned { border: 2px solid #047a0a; background-color: #F0FFF0; }
     
-    /* Container da Árvore: Borda Bordô */
-    .tree-container { background-color: #FFFFFF; border: 4px solid #6A1111; border-radius: 100%; width: 350px; height: 350px; margin-left: auto; margin-right: auto; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+    .tree-container { background-color: #FFFFFF; border: 4px solid #8B4513; border-radius: 100%; width: 350px; height: 350px; margin-left: auto; margin-right: auto; overflow: hidden; display: flex; justify-content: center; align-items: center; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -408,8 +377,7 @@ def parse_time_str_to_obj(t_str):
 def generate_tree_svg(branches):
     scale = min(max(branches, 1), 50) / 10.0
     if branches <= 0:
-        # Tronco seco agora é bordô
-        return """<svg width="300" height="300" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="80" width="20" height="20" fill="#6A1111" /><text x="50" y="70" font-size="5" text-anchor="middle" fill="#555">A árvore secou...</text></svg>"""
+        return """<svg width="300" height="300" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="80" width="20" height="20" fill="#8B4513" /><text x="50" y="70" font-size="5" text-anchor="middle" fill="#555">A árvore secou...</text></svg>"""
     leaves_svg = ""
     # Usando seed local para consistência visual sem afetar random global
     rng = random.Random(42) 
@@ -421,11 +389,10 @@ def generate_tree_svg(branches):
         cx = 50 + rng.randint(-20 - int(branches/2), 20 + int(branches/2))
         cy = trunk_y + rng.randint(-20 - int(branches/2), 10)
         r = rng.randint(3, 6)
-        # Folhas verdes mantidas, mas levemente mais escuras para combinar
-        leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="#006400" opacity="0.8" />'
+        leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="#228B22" opacity="0.8" />'
     
-    # Tronco #6A1111 (Bordô)
-    return f"""<svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#6A1111" />{leaves_svg}</svg>"""
+    # Revertendo: Removemos o texto de dentro do SVG
+    return f"""<svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />{leaves_svg}</svg>"""
 
 def get_patent(total_questions):
     patentes = ["O Maltrapilho (fase iniciante)", "O Comum (fase q banca te humilha)", "O Cadastrado (fase mediana)", "O Altivo (fase da perseverança)", "O Espartano (fase da autonomia)"]
@@ -475,7 +442,7 @@ def login_page():
             st.image(LOGO_FILE)
     
     st.title("🏛️ Mentor SpartaJus")
-    st.markdown("<h3 style='text-align:center; color:#6A1111;'>Login</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center; color:#8B4513;'>Login</h3>", unsafe_allow_html=True)
     
     tab1, tab2, tab3 = st.tabs(["🔑 Entrar", "📝 Registrar", "🔄 Alterar Senha"])
     
@@ -564,7 +531,6 @@ def main_app():
     
     with st.sidebar:
         if os.path.exists(LOGO_FILE): st.image(LOGO_FILE)
-        # st.write já vai herdar a cor branca do CSS da Sidebar
         st.write(f"### Olá, {user}")
         
         # STATUS DO GOOGLE SHEETS
@@ -574,7 +540,7 @@ def main_app():
             st.caption("🟠 Modo Offline (Local JSON)")
 
         st.markdown("""
-        <div style='background-color: rgba(0, 0, 0, 0.2); padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #111111; font-size: 0.85em; color: #FFFFFF;'>
+        <div style='background-color: rgba(255, 255, 255, 0.5); padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #DEB887; font-size: 0.85em; color: #5C4033;'>
             <strong>🎖️ PATENTES DO SPARTAJUS:</strong><br>
             1ª O Maltrapilho (Iniciante)<br>
             2ª O Comum (Em apuros)<br>
@@ -632,22 +598,22 @@ def main_app():
     # --- BODY PRINCIPAL ---
     st.title("🏛️ Mentor SpartaJus")
     
-    # Barra de Progresso Melhorada - Cores ajustadas
+    # Barra de Progresso Melhorada
     prog = total_q % 5000
     perc = (prog / 5000) * 100
     rem_q = 5000 - prog
     
     st.markdown(f"""
-    <div style="background-color: #F8F8FF; padding: 10px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #6A1111; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-        <div style="color: #6A1111; font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between; font-size: 1.1em;">
+    <div style="background-color: #F8F8FF; padding: 10px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #DEB887; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <div style="color: #8B4513; font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between; font-size: 1.1em;">
             <span>🛡️ Progresso da Patente</span>
             <span>Próximo nível em: {rem_q} questões</span>
         </div>
-        <div style="background-color: #EEE; border: 2px solid #6A1111; border-radius: 20px; height: 35px; position: relative; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);">
-            <div style="width: {perc}%; background: linear-gradient(90deg, #6A1111, #4A0000); height: 100%; border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 2px 0 5px rgba(0,0,0,0.2); min-width: 40px;">
+        <div style="background-color: #EEE; border: 2px solid #8B4513; border-radius: 20px; height: 35px; position: relative; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);">
+            <div style="width: {perc}%; background: linear-gradient(90deg, #047a0a, #32CD32); height: 100%; border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 2px 0 5px rgba(0,0,0,0.2); min-width: 40px;">
                 <span style="color: white; font-weight: bold; text-shadow: 1px 1px 2px #333; font-size: 1.1em;">{perc:.1f}%</span>
             </div>
-            <div style="position: absolute; right: 15px; top: 0; bottom: 0; display: flex; align-items: center; color: #111; font-size: 0.9em; font-weight: bold; opacity: 0.8;">
+            <div style="position: absolute; right: 15px; top: 0; bottom: 0; display: flex; align-items: center; color: #666; font-size: 0.9em; font-weight: bold; opacity: 0.8;">
                 Faltam {rem_q}
             </div>
         </div>
@@ -671,7 +637,7 @@ def main_app():
             st.subheader("Árvore da Constância")
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             # Novo local do texto: Fora do SVG, destacado e centralizado
-            st.markdown(f"<h2 style='text-align: center; color: #6A1111; margin-top: 10px;'>🌱 Ramos Vivos: {user_data['tree_branches']}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: center; color: #8B4513; margin-top: 10px;'>🌱 Ramos Vivos: {user_data['tree_branches']}</h2>", unsafe_allow_html=True)
             
             if user_data.get('mod_message'):
                 st.markdown(f"<div class='private-message'><strong>📨 MENSAGEM DO MENTOR:</strong><br>{user_data['mod_message']}</div>", unsafe_allow_html=True)
@@ -853,8 +819,7 @@ def main_app():
                 fig_l.patch.set_facecolor('white')
                 ax_l.set_facecolor('white')
                 grp = df_l.groupby('data_obj')['questoes'].sum().reset_index()
-                # Linha Azul Escuro, Marcador Preto (substitui vermelho)
-                ax_l.plot(grp['data_obj'], grp['questoes'], marker='o', color='#00008B', linewidth=2, markerfacecolor='#111111')
+                ax_l.plot(grp['data_obj'], grp['questoes'], marker='o', color='#0044FF', linewidth=2, markerfacecolor='#FF0000')
                 ax_l.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m'))
                 ax_l.tick_params(colors='#333333', rotation=45, labelsize=8)
                 for spine in ax_l.spines.values(): spine.set_edgecolor('#333333')
@@ -889,7 +854,7 @@ def main_app():
             # --- CORREÇÃO APLICADA AQUI ---
             # Removido 'disabled=True' da coluna questoes e adicionado min_value
             edited = st.data_editor(
-                df_hist[cols_final], 
+                df_hist[cols_final],
                 use_container_width=True, num_rows="dynamic", key="hist_ed",
                 column_config={
                     "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
@@ -967,7 +932,7 @@ def main_app():
         if len(ur) > 0:
             p1 = ur[0]
             # Usa rank-1 (luxuoso)
-            extra_jewel = "<div style='font-size:0.8em; margin-top:5px; color: #FFF;'>💎 ♦️ 💎</div>"
+            extra_jewel = "<div style='font-size:0.8em; margin-top:5px;'>💎 ♦️ 💎</div>"
             html_1 = f"""
             <div class='throne-container'>
                 <div class='throne-card rank-1'>
@@ -977,7 +942,7 @@ def main_app():
                         <span class='laurel-icon'>🌿</span>
                     </div>
                     {extra_jewel}
-                    <hr style='border-top: 1px solid rgba(255,255,255,0.3); margin: 10px 0;'>
+                    <hr style='border-top: 1px solid rgba(0,0,0,0.1); margin: 10px 0;'>
                     <p style='margin:0; font-weight:bold; font-size:1.1em;'>{p1['Q']} Questões</p>
                     <small style='font-style:italic;'>{p1['Patente']}</small>
                 </div>
