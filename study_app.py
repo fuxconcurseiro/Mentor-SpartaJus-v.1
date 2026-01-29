@@ -210,65 +210,133 @@ def ensure_users_exist():
 # Chama inicialização
 ensure_users_exist()
 
-# --- ESTILOS CSS ---
-# Mantive exatamente o original, apenas otimizei carregamento
+# --- ESTILOS CSS (REBRANDING ESPARTANO) ---
 st.markdown("""
     <style>
+    /* Ocultar elementos padrão do Streamlit */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     [data-testid="stDecoration"] {visibility: hidden;}
     [data-testid="stToolbar"] {visibility: hidden;}
     [data-testid="stHeader"] {background-color: rgba(0,0,0,0); visibility: visible;}
     
-    [data-testid="stSidebarCollapsedControl"] {
-        color: #8B4513 !important; 
-        background-color: #FFDEAD; 
-        border-radius: 5px;
+    /* 1. FUNDO GERAL (Pergaminho) */
+    .stApp { 
+        background-color: #F5F4EF; 
+        color: #5D4037; 
     }
-
-    /* CORES GERAIS - IVORY (#FFFFF0) */
-    .stApp { background-color: #FFFFF0; color: #333333; }
-    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander { color: #4A4A4A !important; }
     
+    /* 2. TIPOGRAFIA (Sangue e Couro) */
     h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
-        color: #8B4513 !important; font-family: 'Georgia', serif; text-shadow: none;
+        color: #9E0000 !important; 
+        font-family: 'Georgia', serif; 
+        text-shadow: none;
+    }
+    .stMarkdown, .stText, p, label, .stDataFrame, .stExpander, .stMetricLabel, div[data-testid="stMetricValue"] { 
+        color: #5D4037 !important; 
     }
 
-    /* SIDEBAR */
-    [data-testid="stSidebar"] { background-color: #FFDEAD; border-right: 2px solid #DEB887; }
-    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { 
-        color: #5C4033 !important; 
+    /* 3. SIDEBAR (Areia) */
+    [data-testid="stSidebar"] { 
+        background-color: #E3DFD3; 
+        border-right: 2px solid #DAA520; /* Dourado na divisão */
+    }
+    [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+        color: #9E0000 !important;
+    }
+    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label { 
+        color: #5D4037 !important; 
+    }
+    
+    /* Botão de colapso da sidebar */
+    [data-testid="stSidebarCollapsedControl"] {
+        color: #5D4037 !important; 
+        background-color: #E3DFD3; 
+        border: 1px solid #DAA520;
     }
 
-    /* INPUTS */
-    .stTextInput > div > div > input, .stNumberInput > div > div > input, .stDateInput > div > div > input, .stTimeInput > div > div > input, .stSelectbox > div > div > div, .stTextArea > div > div > textarea, [data-testid="stMultiSelect"] {
-        background-color: #FFFFFF; color: #333333; border: 1px solid #DEB887;
+    /* 4. INPUTS E CAIXAS (Camuflagem) */
+    .stTextInput > div > div > input, 
+    .stNumberInput > div > div > input, 
+    .stDateInput > div > div > input, 
+    .stTimeInput > div > div > input, 
+    .stSelectbox > div > div > div, 
+    .stTextArea > div > div > textarea, 
+    [data-testid="stMultiSelect"] {
+        background-color: #F5F4EF; /* Mesmo do fundo */
+        color: #5D4037; 
+        border: 1px solid #DAA520; /* Borda Dourada */
+        border-radius: 4px;
     }
-    ::placeholder { color: #999999 !important; }
+    ::placeholder { color: #8C7B75 !important; }
 
-    /* BUTTONS */
+    /* 5. BOTÕES (Estilo Espartano) */
     .stButton>button {
-        background-color: #FFDEAD; color: #5C4033; border: 1px solid #8B4513; 
-        border-radius: 6px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        background-color: #E3DFD3; /* Bege Escuro */
+        color: #5D4037; /* Marrom */
+        border: 1px solid #DAA520; /* Borda Dourada */
+        border-radius: 6px; 
+        font-weight: bold; 
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
     }
     .stButton>button:hover {
-        background-color: #FFE4C4; color: #000000; border-color: #A0522D;
+        border-color: #9E0000; /* Vermelho Sangue */
+        color: #9E0000;
+        background-color: #F5F4EF;
+    }
+    /* Botões Primários (Ações Fortes) */
+    div.stButton > button[kind="primary"] {
+        background-color: #DAA520;
+        color: #FFFFFF;
+        border: 1px solid #B8860B;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        background-color: #9E0000;
+        border-color: #800000;
     }
 
-    /* CARDS */
-    .metric-card { background-color: #FFF8DC; padding: 15px; border-radius: 10px; border: 1px solid #DEB887; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .metric-card h4, .metric-card p { color: #5C4033 !important; }
+    /* 6. CARDS E CONTAINERS */
+    .metric-card { 
+        background-color: #E3DFD3; /* Areia */
+        padding: 15px; 
+        border-radius: 10px; 
+        border: 1px solid #DAA520; 
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+    }
+    .metric-card h4, .metric-card p { color: #5D4037 !important; }
 
     .rank-card {
-        background: linear-gradient(135deg, #FFDEAD, #FFE4C4); color: #5C4033;
-        padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px;
-        border: 2px solid #DAA520; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        background: linear-gradient(135deg, #E3DFD3, #F5F4EF); 
+        color: #5D4037;
+        padding: 20px; 
+        border-radius: 12px; 
+        text-align: center; 
+        margin-bottom: 20px;
+        border: 2px solid #DAA520; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
 
-    .mod-message { background-color: #FFFaf0; border-left: 5px solid #DAA520; padding: 15px; margin-top: 15px; border-radius: 8px; color: #333; border: 1px solid #EEE; }
-    .private-message { background-color: #FFF0F5; border: 2px dashed #C71585; padding: 15px; margin-bottom: 20px; border-radius: 8px; color: #800000; }
+    /* Mensagens */
+    .mod-message { 
+        background-color: #E3DFD3; 
+        border-left: 5px solid #9E0000; 
+        padding: 15px; 
+        margin-top: 15px; 
+        border-radius: 4px; 
+        color: #5D4037; 
+        border: 1px solid #DAA520; 
+    }
+    .private-message { 
+        background-color: #F5F4EF; 
+        border: 2px dashed #9E0000; 
+        padding: 15px; 
+        margin-bottom: 20px; 
+        border-radius: 8px; 
+        color: #9E0000; 
+    }
 
-    /* THRONE RANKING - ESTILO IMPERIAL */
+    /* THRONE RANKING - Ajuste de Cores */
     .throne-container { display: flex; flex-direction: column; align-items: center; width: 100%; gap: 15px; }
     
     .throne-card {
@@ -285,48 +353,58 @@ st.markdown("""
     }
     .throne-card:hover { transform: scale(1.02); }
 
-    /* RANK 1 - Ouro & Rubi (MANTIDO O LUXO) */
+    /* RANK 1 - Ouro & Rubi */
     .rank-1 {
-        background: radial-gradient(circle, #FFF8DC 20%, #FFD700 100%);
+        background: radial-gradient(circle, #F5F4EF 20%, #DAA520 100%);
         border: 4px double #DAA520; 
         box-shadow: 
-            0 0 15px rgba(255, 215, 0, 0.6), 
-            inset 0 0 20px rgba(139, 0, 0, 0.2);
-        color: #4B3621;
+            0 0 15px rgba(218, 165, 32, 0.4), 
+            inset 0 0 20px rgba(158, 0, 0, 0.1);
+        color: #5D4037;
     }
     .rank-1::before, .rank-1::after {
         content: ''; position: absolute; width: 12px; height: 12px; border-radius: 50%;
-        background: radial-gradient(circle at 30% 30%, #FF4500, #8B0000);
-        box-shadow: 0 0 5px #FF0000; border: 1px solid #FFD700;
+        background: radial-gradient(circle at 30% 30%, #9E0000, #5D4037);
+        box-shadow: 0 0 5px #9E0000; border: 1px solid #DAA520;
     }
     .rank-1::before { top: 10px; left: 10px; }
     .rank-1::after { top: 10px; right: 10px; }
 
-    /* RANK 2 - Prata (SIMPLIFICADO) */
+    /* RANK 2 - Prata (Ajustado) */
     .rank-2 {
-        background: linear-gradient(180deg, #F8F8FF 0%, #C0C0C0 100%);
+        background: linear-gradient(180deg, #F5F4EF 0%, #C0C0C0 100%);
         border: 2px solid #708090;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        color: #333;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        color: #5D4037;
     }
 
-    /* RANK 3 - Bronze (SIMPLIFICADO) */
+    /* RANK 3 - Bronze (Ajustado) */
     .rank-3 {
-        background: linear-gradient(180deg, #FFF5EE 0%, #CD7F32 100%);
+        background: linear-gradient(180deg, #F5F4EF 0%, #CD7F32 100%);
         border: 2px solid #8B4513;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
         color: #3E2723;
     }
 
     .laurel-text { font-family: 'Georgia', serif; font-weight: bold; font-size: 1.2em; display: flex; align-items: center; justify-content: center; gap: 10px; }
-    .laurel-icon { font-size: 1.5em; opacity: 0.8; }
+    .laurel-icon { font-size: 1.5em; opacity: 0.8; color: #9E0000; }
 
     .stImage img { width: 100%; mix-blend-mode: multiply; }
     
-    .cal-day { background-color: #FFFFFF; border: 1px solid #DEB887; border-radius: 4px; padding: 10px; text-align: center; margin: 2px; min-height: 60px; color: #333; }
-    .cal-day.planned { border: 2px solid #047a0a; background-color: #F0FFF0; }
+    .cal-day { background-color: #F5F4EF; border: 1px solid #DAA520; border-radius: 4px; padding: 10px; text-align: center; margin: 2px; min-height: 60px; color: #5D4037; }
+    .cal-day.planned { border: 2px solid #9E0000; background-color: #E3DFD3; }
     
-    .tree-container { background-color: #FFFFFF; border: 4px solid #8B4513; border-radius: 100%; width: 350px; height: 350px; margin-left: auto; margin-right: auto; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+    .tree-container { background-color: #F5F4EF; border: 4px solid #5D4037; border-radius: 100%; width: 350px; height: 350px; margin-left: auto; margin-right: auto; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+    
+    /* Tabs */
+    button[data-baseweb="tab"] {
+        background-color: transparent !important;
+        color: #5D4037 !important;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #9E0000 !important;
+        border-bottom-color: #9E0000 !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -377,7 +455,7 @@ def parse_time_str_to_obj(t_str):
 def generate_tree_svg(branches):
     scale = min(max(branches, 1), 50) / 10.0
     if branches <= 0:
-        return """<svg width="300" height="300" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="80" width="20" height="20" fill="#8B4513" /><text x="50" y="70" font-size="5" text-anchor="middle" fill="#555">A árvore secou...</text></svg>"""
+        return """<svg width="300" height="300" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="40" y="80" width="20" height="20" fill="#5D4037" /><text x="50" y="70" font-size="5" text-anchor="middle" fill="#555">A árvore secou...</text></svg>"""
     leaves_svg = ""
     # Usando seed local para consistência visual sem afetar random global
     rng = random.Random(42) 
@@ -392,7 +470,7 @@ def generate_tree_svg(branches):
         leaves_svg += f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="#228B22" opacity="0.8" />'
     
     # Revertendo: Removemos o texto de dentro do SVG
-    return f"""<svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#8B4513" />{leaves_svg}</svg>"""
+    return f"""<svg width="350" height="350" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect x="45" y="{trunk_y}" width="10" height="{trunk_h}" fill="#5D4037" />{leaves_svg}</svg>"""
 
 def get_patent(total_questions):
     patentes = ["O Maltrapilho (fase iniciante)", "O Comum (fase q banca te humilha)", "O Cadastrado (fase mediana)", "O Altivo (fase da perseverança)", "O Espartano (fase da autonomia)"]
@@ -442,7 +520,7 @@ def login_page():
             st.image(LOGO_FILE)
     
     st.title("🏛️ Mentor SpartaJus")
-    st.markdown("<h3 style='text-align:center; color:#8B4513;'>Login</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center; color:#9E0000;'>Login</h3>", unsafe_allow_html=True)
     
     tab1, tab2, tab3 = st.tabs(["🔑 Entrar", "📝 Registrar", "🔄 Alterar Senha"])
     
@@ -540,7 +618,7 @@ def main_app():
             st.caption("🟠 Modo Offline (Local JSON)")
 
         st.markdown("""
-        <div style='background-color: rgba(255, 255, 255, 0.5); padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #DEB887; font-size: 0.85em; color: #5C4033;'>
+        <div style='background-color: #E3DFD3; padding: 10px; border-radius: 5px; margin-bottom: 15px; border: 1px solid #DAA520; font-size: 0.85em; color: #5D4037;'>
             <strong>🎖️ PATENTES DO SPARTAJUS:</strong><br>
             1ª O Maltrapilho (Iniciante)<br>
             2ª O Comum (Em apuros)<br>
@@ -554,21 +632,8 @@ def main_app():
             st.rerun()
             
         st.divider()
-        with st.expander("📚 Gerenciar Matérias"):
-            new_sub = st.text_input("Nova Matéria:")
-            if st.button("Adicionar") and new_sub:
-                if new_sub not in user_data['subjects_list']:
-                    user_data['subjects_list'].append(new_sub)
-                    save_current_user_data()
-                    st.success(f"{new_sub} adicionada!")
-                    time.sleep(0.5)
-                    st.rerun()
-            
-            rem_sub = st.selectbox("Remover Matéria:", [""] + user_data['subjects_list'])
-            if st.button("Remover") and rem_sub:
-                user_data['subjects_list'].remove(rem_sub)
-                save_current_user_data()
-                st.rerun()
+        # --- ATENÇÃO: GERENCIAR MATÉRIAS REMOVIDO DAQUI PARA UMA ABA PRÓPRIA ---
+        # ISSO CORRIGE O ERRO DE VISUALIZAÇÃO NO MOBILE
         
         if is_real_admin or is_admin_mode:
             with st.expander("🛡️ PAINEL DO MODERADOR", expanded=True):
@@ -604,16 +669,16 @@ def main_app():
     rem_q = 5000 - prog
     
     st.markdown(f"""
-    <div style="background-color: #F8F8FF; padding: 10px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #DEB887; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-        <div style="color: #8B4513; font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between; font-size: 1.1em;">
+    <div style="background-color: #E3DFD3; padding: 10px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #DAA520; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <div style="color: #9E0000; font-weight: bold; margin-bottom: 8px; display: flex; justify-content: space-between; font-size: 1.1em;">
             <span>🛡️ Progresso da Patente</span>
             <span>Próximo nível em: {rem_q} questões</span>
         </div>
-        <div style="background-color: #EEE; border: 2px solid #8B4513; border-radius: 20px; height: 35px; position: relative; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);">
+        <div style="background-color: #F5F4EF; border: 2px solid #DAA520; border-radius: 20px; height: 35px; position: relative; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);">
             <div style="width: {perc}%; background: linear-gradient(90deg, #047a0a, #32CD32); height: 100%; border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 2px 0 5px rgba(0,0,0,0.2); min-width: 40px;">
                 <span style="color: white; font-weight: bold; text-shadow: 1px 1px 2px #333; font-size: 1.1em;">{perc:.1f}%</span>
             </div>
-            <div style="position: absolute; right: 15px; top: 0; bottom: 0; display: flex; align-items: center; color: #666; font-size: 0.9em; font-weight: bold; opacity: 0.8;">
+            <div style="position: absolute; right: 15px; top: 0; bottom: 0; display: flex; align-items: center; color: #5D4037; font-size: 0.9em; font-weight: bold; opacity: 0.8;">
                 Faltam {rem_q}
             </div>
         </div>
@@ -628,7 +693,8 @@ def main_app():
         stars = "".join(["🟡"]*g + ["⚪"]*s + ["🟤"]*b) or "Sem estrelas"
         st.markdown(f"<div class='metric-card'><h4>⭐ Leitura</h4><div style='font-size:1.5em;'>{stars}</div><p>Páginas: {total_p}</p></div>", unsafe_allow_html=True)
 
-    tabs = st.tabs(["📊 Diário", "📈 Dashboard", "🏆 Ranking", "📢 Avisos", "📅 Agenda", "🦁 Comportamento"] + (["🛡️ Admin"] if user==ADMIN_USER else []))
+    # --- ATUALIZAÇÃO: ADICIONADA ABA DE MATÉRIAS ---
+    tabs = st.tabs(["📊 Diário", "📈 Dashboard", "🏆 Ranking", "📢 Avisos", "📅 Agenda", "🦁 Comportamento", "📚 Matérias"] + (["🛡️ Admin"] if user==ADMIN_USER else []))
 
     # --- TAB 1: DIÁRIO ---
     with tabs[0]:
@@ -637,7 +703,7 @@ def main_app():
             st.subheader("Árvore da Constância")
             st.markdown(f'<div class="tree-container">{generate_tree_svg(user_data["tree_branches"])}</div>', unsafe_allow_html=True)
             # Novo local do texto: Fora do SVG, destacado e centralizado
-            st.markdown(f"<h2 style='text-align: center; color: #8B4513; margin-top: 10px;'>🌱 Ramos Vivos: {user_data['tree_branches']}</h2>", unsafe_allow_html=True)
+            st.markdown(f"<h2 style='text-align: center; color: #9E0000; margin-top: 10px;'>🌱 Ramos Vivos: {user_data['tree_branches']}</h2>", unsafe_allow_html=True)
             
             if user_data.get('mod_message'):
                 st.markdown(f"<div class='private-message'><strong>📨 MENSAGEM DO MENTOR:</strong><br>{user_data['mod_message']}</div>", unsafe_allow_html=True)
@@ -787,8 +853,8 @@ def main_app():
                 sizes = list(filtered_q_details.values())
                 
                 fig, ax = plt.subplots(figsize=(6, 3))
-                fig.patch.set_facecolor('white')
-                ax.set_facecolor('white')
+                fig.patch.set_facecolor('#F5F4EF')
+                ax.set_facecolor('#F5F4EF')
                 
                 # GERAÇÃO DINÂMICA DE CORES (Baseado apenas nas matérias filtradas)
                 colors = generate_distinct_colors(len(labels))
@@ -796,7 +862,7 @@ def main_app():
                 wedges, _ = ax.pie(sizes, labels=None, startangle=90, colors=colors)
                 legend_labels = [f"{(s/filtered_total)*100:.1f}% - {l}" for l, s in zip(labels, sizes)]
                 
-                ax.legend(wedges, legend_labels, title="Matérias", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), frameon=False)
+                ax.legend(wedges, legend_labels, title="Matérias", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1), frameon=False, labelcolor='#5D4037')
                 ax.axis('equal')
                 
                 c1, c2, c3 = st.columns([1, 2, 1])
@@ -816,14 +882,14 @@ def main_app():
                 df_l = df_l.sort_values(by='data_obj')
                 
                 fig_l, ax_l = plt.subplots(figsize=(5, 1.5))
-                fig_l.patch.set_facecolor('white')
-                ax_l.set_facecolor('white')
+                fig_l.patch.set_facecolor('#F5F4EF')
+                ax_l.set_facecolor('#F5F4EF')
                 grp = df_l.groupby('data_obj')['questoes'].sum().reset_index()
-                ax_l.plot(grp['data_obj'], grp['questoes'], marker='o', color='#0044FF', linewidth=2, markerfacecolor='#FF0000')
+                ax_l.plot(grp['data_obj'], grp['questoes'], marker='o', color='#9E0000', linewidth=2, markerfacecolor='#DAA520')
                 ax_l.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m'))
-                ax_l.tick_params(colors='#333333', rotation=45, labelsize=8)
-                for spine in ax_l.spines.values(): spine.set_edgecolor('#333333')
-                ax_l.grid(color='#333333', linestyle=':', alpha=0.2)
+                ax_l.tick_params(colors='#5D4037', rotation=45, labelsize=8)
+                for spine in ax_l.spines.values(): spine.set_edgecolor('#DAA520')
+                ax_l.grid(color='#5D4037', linestyle=':', alpha=0.2)
                 
                 cl1, cl2, cl3 = st.columns([1, 4, 1])
                 with cl2: st.pyplot(fig_l)
@@ -1203,9 +1269,43 @@ def main_app():
                 c4.metric("📚 Leitura", f"{cr} dias")
         else: st.info("Sem dados suficientes.")
 
-    # --- TAB 7: ADMIN ---
+    # --- TAB 7: MATÉRIAS (NOVA) ---
+    with tabs[6]:
+        st.header("📚 Gerenciar Matérias")
+        st.caption("Adicione ou remova disciplinas do seu plano de estudo.")
+        
+        c_add, c_rem = st.columns(2)
+        
+        with c_add:
+            st.subheader("Adicionar")
+            new_sub = st.text_input("Nova Matéria:")
+            if st.button("➕ Adicionar Matéria", type="primary") and new_sub:
+                if new_sub not in user_data['subjects_list']:
+                    user_data['subjects_list'].append(new_sub)
+                    save_current_user_data()
+                    st.success(f"{new_sub} adicionada com sucesso!")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.warning("Essa matéria já existe na sua lista.")
+        
+        with c_rem:
+            st.subheader("Remover")
+            rem_sub = st.selectbox("Selecione para remover:", [""] + user_data['subjects_list'])
+            if st.button("🗑️ Remover Matéria") and rem_sub:
+                user_data['subjects_list'].remove(rem_sub)
+                save_current_user_data()
+                st.success(f"{rem_sub} removida!")
+                time.sleep(0.5)
+                st.rerun()
+                
+        st.divider()
+        st.markdown("### 📋 Lista Atual")
+        st.write(", ".join(user_data['subjects_list']))
+
+    # --- TAB 8: ADMIN (SE TIVER PERMISSÃO) ---
     if user == ADMIN_USER:
-        with tabs[6]:
+        with tabs[7]:
             st.header("🛡️ Moderação")
             ca, cd = st.columns(2)
             with ca:
