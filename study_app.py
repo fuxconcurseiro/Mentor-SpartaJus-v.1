@@ -806,8 +806,18 @@ def main_app():
             # -----------------------------------
             st.markdown("##### 🔍 Filtros Personalizados")
             
-            # Recuperar datas para limites do Date Input
-            all_dates = [datetime.strptime(l['data'], "%Y-%m-%d").date() for l in user_data['logs']]
+            # Recuperar datas para limites do Date Input (CORREÇÃO DE TIPO MISTO)
+            all_dates = []
+            for l in user_data['logs']:
+                d_raw = l.get('data')
+                if isinstance(d_raw, str):
+                    try: all_dates.append(datetime.strptime(d_raw, "%Y-%m-%d").date())
+                    except ValueError: pass
+                elif isinstance(d_raw, datetime):
+                    all_dates.append(d_raw.date())
+                elif isinstance(d_raw, date):
+                    all_dates.append(d_raw)
+            
             min_date = min(all_dates) if all_dates else get_today_br()
             max_date = max(all_dates) if all_dates else get_today_br()
             
@@ -851,7 +861,19 @@ def main_app():
                     start_d = end_d = date_range[0]
 
             for l in user_data['logs']:
-                log_date = datetime.strptime(l['data'], "%Y-%m-%d").date()
+                # Tratamento robusto para extrair a data (CORREÇÃO NO LOOP DE FILTRO)
+                d_raw = l.get('data')
+                log_date = None
+                
+                if isinstance(d_raw, str):
+                    try: log_date = datetime.strptime(d_raw, "%Y-%m-%d").date()
+                    except ValueError: continue
+                elif isinstance(d_raw, datetime):
+                    log_date = d_raw.date()
+                elif isinstance(d_raw, date):
+                    log_date = d_raw
+                
+                if not log_date: continue
                 
                 # Aplica Filtro de Data
                 if start_d <= log_date <= end_d:
