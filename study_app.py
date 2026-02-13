@@ -486,9 +486,27 @@ def get_stars(total_pages):
     return gold, rem // 3, rem % 3
 
 def calculate_streak(logs):
+    """Calcula os dias consecutivos de estudo (streak) com robustez de tipos."""
     if not logs: return 0
-    valid_logs = [l['data'] for l in logs if l.get('estudou', False)]
+    
+    # 1. Sanitizar e normalizar todas as datas para string "YYYY-MM-DD"
+    valid_logs = []
+    for l in logs:
+        if not l.get('estudou', False):
+            continue
+            
+        d = l.get('data')
+        
+        # Trata string
+        if isinstance(d, str):
+            valid_logs.append(d)
+        # Trata objetos date ou datetime
+        elif isinstance(d, (date, datetime)):
+            valid_logs.append(d.strftime("%Y-%m-%d"))
+            
+    # 2. Ordenar lista de strings (agora seguro)
     study_dates = sorted(list(set(valid_logs)), reverse=True)
+    
     if not study_dates: return 0
     
     today = get_today_br()
