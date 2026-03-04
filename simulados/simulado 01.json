@@ -1,0 +1,26 @@
+{
+  "sim_01_const": {
+    "titulo": "Simulado 01 - Direito Constitucional",
+    "materia": "Constitucional",
+    "questoes": [
+      {
+        "id": "1",
+        "enunciado": "A Constituição Federal de 1988 é classificada como outorgada, visto que foi imposta sem participação popular direta na sua aprovação.",
+        "resposta_correta": "Errado",
+        "justificativa": "A CF/88 é promulgada (democrática), pois derivou de uma Assembleia Nacional Constituinte formada por representantes eleitos pelo povo."
+      },
+      {
+        "id": "2",
+        "enunciado": "Os direitos e garantias fundamentais têm aplicação imediata, conforme disposição expressa no texto constitucional.",
+        "resposta_correta": "Certo",
+        "justificativa": "Exato. O art. 5º, § 1º da CF/88 dispõe que as normas definidoras dos direitos e garantias fundamentais têm aplicação imediata."
+      },
+      {
+        "id": "3",
+        "enunciado": "Segundo a jurisprudência do STF, é possível a extradição de brasileiro nato em caso de crime comum praticado antes da naturalização.",
+        "resposta_correta": "Errado",
+        "justificativa": "O brasileiro nato não pode ser extraditado em nenhuma hipótese. A regra da extradição por crime comum antes da naturalização ou tráfico de drogas a qualquer tempo aplica-se apenas ao brasileiro naturalizado (Art. 5º, LI da CF)."
+      }
+    ]
+  }
+}
