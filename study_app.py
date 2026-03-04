@@ -531,16 +531,29 @@ def calculate_streak(logs):
     return streak
 
 @st.cache_data(show_spinner=False)
-def load_simulados(filepath="simulados.json"):
-    """Lê o arquivo de simulados externos de forma segura."""
-    if not os.path.exists(filepath):
-        return {}
+def load_simulados(directory="."):
+    """Lê todos os arquivos de simulados externos (formato JSON) do diretório atual."""
+    simulados_db = {}
+    if not os.path.exists(directory):
+        return simulados_db
+        
     try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            return json.load(f)
+        for filename in os.listdir(directory):
+            # Identifica qualquer arquivo que comece com "simulado" e termine com .json
+            if filename.lower().startswith("simulado") and filename.endswith(".json"):
+                filepath = os.path.join(directory, filename)
+                try:
+                    with open(filepath, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        if isinstance(data, dict):
+                            # Mescla o conteúdo deste arquivo no dicionário principal
+                            simulados_db.update(data)
+                except Exception as e:
+                    print(f"Erro ao carregar {filename}: {e}")
     except Exception as e:
-        print(f"Erro ao carregar simulados: {e}")
-        return {}
+        print(f"Erro ao acessar diretório: {e}")
+        
+    return simulados_db
 
 # --- AUTH SYSTEM ---
 def login_page():
