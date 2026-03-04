@@ -564,8 +564,6 @@ def load_simulados():
                     data = json.load(f)
                     if isinstance(data, dict):
                         simulados_db.update(data)
-                        # Mensagem opcional para debug, pode remover se poluir muito
-                        # st.sidebar.success(f"✅ Lendo: {filename}")
                     else:
                         st.sidebar.error(f"⚠️ O arquivo {filename} não possui o formato correto de Dicionário.")
             except json.JSONDecodeError as e:
@@ -760,7 +758,7 @@ def main_app():
         stars = "".join(["🟡"]*g + ["⚪"]*s + ["🟤"]*b) or "Sem estrelas"
         st.markdown(f"<div class='metric-card'><h4>⭐ Leitura</h4><div style='font-size:1.5em;'>{stars}</div><p>Páginas: {total_p}</p></div>", unsafe_allow_html=True)
 
-    # --- ATUALIZAÇÃO: ABA DE SIMULADOS INCLUÍDA ANTES DE ADMIN ---
+    # --- ATUALIZAÇÃO: ADICIONADA ABA DE MATÉRIAS ---
     tabs = st.tabs(["📊 Diário", "📈 Dashboard", "🏆 Ranking", "📢 Avisos", "📅 Agenda", "🦁 Comportamento", "📚 Matérias", "📝 Simulados"] + (["🛡️ Admin"] if user==ADMIN_USER else []))
 
     # --- TAB 1: DIÁRIO ---
@@ -1392,7 +1390,7 @@ def main_app():
         st.markdown("### 📋 Lista Atual")
         st.write(", ".join(user_data['subjects_list']))
 
-    # --- TAB 8: SIMULADOS (NOVA FUNCIONALIDADE) ---
+    # --- TAB 8: SIMULADOS (ATUALIZADA) ---
     with tabs[7]:
         st.header("📝 Batalhas e Simulados")
         simulados_db = load_simulados()
@@ -1440,17 +1438,17 @@ def main_app():
                 # --- PAINEL VISUAL (GRID DE PROGRESSO) ---
                 c_title, c_grid = st.columns([1, 2])
                 with c_title:
-                    st.markdown(f"<h4 style='color: #9E0000; margin-bottom: 0;'>{sim_titles[selected_sim_key]}</h4>", unsafe_allow_html=True)
-                    st.caption(f"🛡️ Disciplina: {sim_materia} | Total: {len(questoes)} questões")
+                    st.markdown(f"<div style='font-size: 1.1em; color: #5D4037; margin-top: 10px; font-weight: bold;'>{sim_titles[selected_sim_key]}<br><span style='font-size: 0.9em; font-weight: normal;'>{len(questoes)} questões</span></div>", unsafe_allow_html=True)
                 
                 with c_grid:
-                    grid_html = "<div style='display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; padding-top: 5px;'>"
+                    # [Inference] Montando o HTML em uma única linha evitamos bugs de renderização do Streamlit Markdown
+                    grid_html = "<div style='display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; padding-top: 5px; margin-bottom: 20px;'>"
                     for i, q in enumerate(questoes, 1):
                         q_id = str(q.get("id", i))
-                        # Cores Padrão: Não Respondida (Cinza claro/Ivory)
-                        bg_color = "#E3DFD3" 
-                        border_color = "#DAA520"
-                        text_color = "#5D4037"
+                        # Cores Baseadas na Imagem de Referência
+                        bg_color = "#F0F2F6"
+                        border_color = "#E0E2E6"
+                        text_color = "#31333F"
                         
                         if q_id in progress:
                             if progress[q_id].get("acertou"):
@@ -1462,13 +1460,8 @@ def main_app():
                                 border_color = "#DC3545"
                                 text_color = "#721C24"
                                 
-                        grid_html += f"""
-                        <div title='Questão {i}' style='width: 32px; height: 32px; background-color: {bg_color}; border: 1px solid {border_color}; 
-                                    border-radius: 6px; display: flex; align-items: center; justify-content: center; 
-                                    font-weight: bold; color: {text_color}; font-size: 0.85em; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'>
-                            {i}
-                        </div>
-                        """
+                        estilo_caixa = f"width: 35px; height: 35px; background-color: {bg_color}; border: 1px solid {border_color}; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: bold; color: {text_color}; font-size: 0.9em; box-shadow: 0 1px 2px rgba(0,0,0,0.05);"
+                        grid_html += f"<div title='Questão {i}' style='{estilo_caixa}'>{i}</div>"
                     grid_html += "</div>"
                     st.markdown(grid_html, unsafe_allow_html=True)
                 
@@ -1530,6 +1523,7 @@ def main_app():
                     ["Certo", "Errado"], 
                     index=default_idx, 
                     disabled=is_answered, # Desabilita se já respondeu
+                    label_visibility="collapsed", # Esconde o texto "Sua Tática:"
                     key=f"radio_{selected_sim_key}_{q_id}"
                 )
                 
