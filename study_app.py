@@ -530,7 +530,6 @@ def calculate_streak(logs):
         elif d_obj < current_check: break
     return streak
 
-@st.cache_data(show_spinner=False)
 def load_simulados(directory="."):
     """Lê todos os arquivos de simulados externos (formato JSON) do diretório atual."""
     simulados_db = {}
@@ -540,7 +539,7 @@ def load_simulados(directory="."):
     try:
         for filename in os.listdir(directory):
             # Identifica qualquer arquivo que comece com "simulado" e termine com .json
-            if filename.lower().startswith("simulado") and filename.endswith(".json"):
+            if filename.lower().startswith("simulado") and filename.lower().endswith(".json"):
                 filepath = os.path.join(directory, filename)
                 try:
                     with open(filepath, "r", encoding="utf-8") as f:
@@ -548,6 +547,9 @@ def load_simulados(directory="."):
                         if isinstance(data, dict):
                             # Mescla o conteúdo deste arquivo no dicionário principal
                             simulados_db.update(data)
+                except json.JSONDecodeError as e:
+                    # Exibe um alerta visual se o JSON estiver mal formatado
+                    st.sidebar.error(f"⚠️ Erro de sintaxe no arquivo {filename}: {e}")
                 except Exception as e:
                     print(f"Erro ao carregar {filename}: {e}")
     except Exception as e:
