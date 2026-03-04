@@ -530,32 +530,54 @@ def calculate_streak(logs):
         elif d_obj < current_check: break
     return streak
 
-def load_simulados(directory="."):
-    """Lê todos os arquivos de simulados externos (formato JSON) do diretório atual."""
+def load_simulados():
+    """Lê todos os arquivos de simulados externos da subpasta 'simulados'."""
     simulados_db = {}
-    if not os.path.exists(directory):
+    
+    # Define o diretório raiz onde o script app_spartajus.py está localizado
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Aponta especificamente para a subpasta "simulados"
+    simulados_dir = os.path.join(base_dir, "simulados")
+    
+    if not os.path.exists(simulados_dir):
+        st.sidebar.warning(f"⚠️ A subpasta 'simulados' não foi encontrada em: {base_dir}")
         return simulados_db
         
     try:
-        for filename in os.listdir(directory):
-            # Identifica qualquer arquivo que comece com "simulado" e termine com .json
-            if filename.lower().startswith("simulado") and filename.lower().endswith(".json"):
-                filepath = os.path.join(directory, filename)
-                try:
-                    with open(filepath, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                        if isinstance(data, dict):
-                            # Mescla o conteúdo deste arquivo no dicionário principal
-                            simulados_db.update(data)
-                except json.JSONDecodeError as e:
-                    # Exibe um alerta visual se o JSON estiver mal formatado
-                    st.sidebar.error(f"⚠️ Erro de sintaxe no arquivo {filename}: {e}")
-                except Exception as e:
-                    print(f"Erro ao carregar {filename}: {e}")
+        arquivos_encontrados = os.listdir(simulados_dir)
+        
+        # Filtra arquivos ignorando letras maiúsculas/minúsculas
+        arquivos_simulados = [
+            f for f in arquivos_encontrados 
+            if f.lower().startswith("simulado") and f.lower().endswith(".json")
+        ]
+        
+        if not arquivos_simulados:
+            st.sidebar.info(f"ℹ️ Nenhum arquivo 'simulado...json' encontrado na pasta:\n{simulados_dir}")
+            return simulados_db
+
+        for filename in arquivos_simulados:
+            filepath = os.path.join(simulados_dir, filename)
+            try:
+                with open(filepath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        simulados_db.update(data)
+                        # Mensagem opcional para debug, pode remover se poluir muito
+                        # st.sidebar.success(f"✅ Lendo: {filename}")
+                    else:
+                        st.sidebar.error(f"⚠️ O arquivo {filename} não possui o formato correto de Dicionário.")
+            except json.JSONDecodeError as e:
+                st.sidebar.error(f"⚠️ Erro de sintaxe (JSON quebrado) no arquivo {filename}: {e}")
+            except Exception as e:
+                st.sidebar.error(f"Erro ao carregar {filename}: {e}")
+                
     except Exception as e:
-        print(f"Erro ao acessar diretório: {e}")
+        st.sidebar.error(f"Erro ao acessar a pasta simulados: {e}")
         
     return simulados_db
+
 
 # --- AUTH SYSTEM ---
 def login_page():
