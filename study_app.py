@@ -530,6 +530,18 @@ def calculate_streak(logs):
         elif d_obj < current_check: break
     return streak
 
+@st.cache_data(show_spinner=False)
+def load_simulados(filepath="simulados.json"):
+    """Lê o arquivo de simulados externos de forma segura."""
+    if not os.path.exists(filepath):
+        return {}
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Erro ao carregar simulados: {e}")
+        return {}
+
 # --- AUTH SYSTEM ---
 def login_page():
     c1, c2, c3 = st.columns([1, 2, 1]) 
@@ -711,8 +723,8 @@ def main_app():
         stars = "".join(["🟡"]*g + ["⚪"]*s + ["🟤"]*b) or "Sem estrelas"
         st.markdown(f"<div class='metric-card'><h4>⭐ Leitura</h4><div style='font-size:1.5em;'>{stars}</div><p>Páginas: {total_p}</p></div>", unsafe_allow_html=True)
 
-    # --- ATUALIZAÇÃO: ADICIONADA ABA DE MATÉRIAS ---
-    tabs = st.tabs(["📊 Diário", "📈 Dashboard", "🏆 Ranking", "📢 Avisos", "📅 Agenda", "🦁 Comportamento", "📚 Matérias"] + (["🛡️ Admin"] if user==ADMIN_USER else []))
+    # --- ATUALIZAÇÃO: ABA DE SIMULADOS INCLUÍDA ANTES DE ADMIN ---
+    tabs = st.tabs(["📊 Diário", "📈 Dashboard", "🏆 Ranking", "📢 Avisos", "📅 Agenda", "🦁 Comportamento", "📚 Matérias", "📝 Simulados"] + (["🛡️ Admin"] if user==ADMIN_USER else []))
 
     # --- TAB 1: DIÁRIO ---
     with tabs[0]:
@@ -1343,9 +1355,235 @@ def main_app():
         st.markdown("### 📋 Lista Atual")
         st.write(", ".join(user_data['subjects_list']))
 
-    # --- TAB 8: ADMIN (SE TIVER PERMISSÃO) ---
+    # --- TAB 8: SIMULADOS (NOVA FUNCIONALIDADE) ---
+    with tabs[7]:
+        st.header("📝 Batalhas e Simulados")
+        simulados_db = load_simulados()
+        
+        if not simulados_db:
+            st.info("Nenhum simulado disponível no momento. O Mestre de Armas está preparando novas batalhas.")
+        else:
+            # Assegura a estrutura de dados de progresso no JSON
+            if 'simulados_progress' not in user_data:
+                user_data['simulados_progress'] = {}
+                
+            sim_opts = list(simulados_db.keys())
+            sim_titles = {k: v.get("titulo", k) for k, v in simulados_db.items()}
+            
+            c_sel, c_admin = st.columns([3, 1])
+            with c_sel:
+                selected_sim_key = st.selectbox("Escolha sua Batalha:", sim_opts, format_func=lambda x: sim_titles[x])
+            
+            sim_data = simulados_db[selected_sim_key]
+            sim_materia = sim_data.get("materia", "Geral")
+            questoes = sim_data.get("questoes", [])
+            
+            # --- MODO ADMIN / VISÃO DO MENTOR ---
+            modo_mentor = False
+            if is_real_admin or is_admin_mode:
+                with c_admin:
+                    st.write("") # Spacer vertical
+                    st.write("")
+                    modo_mentor = st.checkbox("👁️ Visão do Mentor")
+            
+            if modo_mentor:
+                st.markdown(f"### 👁️ Gabarito Integral: {sim_titles[selected_sim_key]}")
+                st.info("Modo de leitura ativado. Mecânica de testes suspensa.")
+                for i, q in enumerate(questoes, 1):
+                    with st.expander(f"Questão {i} - Gabarito Oficial: {q.get('resposta_correta')}"):
+                        st.markdown(f"<p style='color:#5D4037;'><strong>Enunciado:</strong> {q.get('enunciado')}</p>", unsafe_allow_html=True)
+                        st.markdown(f"<div class='mod-message' style='border-left-color:#DAA520;'><strong>Justificativa:</strong> {q.get('justificativa')}</div>", unsafe_allow_html=True)
+            else:
+                # --- MODO ESTUDANTE (RESOLUÇÃO) ---
+                if selected_sim_key not in user_data['simulados_progress']:
+                    user_data['simulados_progress'][selected_sim_key] = {}
+                progress = user_data['simulados_progress'][selected_sim_key]
+                
+                st.markdown("---")
+                # --- PAINEL VISUAL (GRID DE PROGRESSO) ---
+                c_title, c_grid = st.columns([1, 2])
+                with c_title:
+                    st.markdown(f"<h4 style='color: #9E0000; margin-bottom: 0;'>{sim_titles[selected_sim_key]}</h4>", unsafe_allow_html=True)
+                    st.caption(f"🛡️ Disciplina: {sim_materia} | Total: {len(questoes)} questões")
+                
+                with c_grid:
+                    grid_html = "<div style='display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; padding-top: 5px;'>"
+                    for i, q in enumerate(questoes, 1):
+                        q_id = str(q.get("id", i))
+                        # Cores Padrão: Não Respondida (Cinza claro/Ivory)
+                        bg_color = "#E3DFD3" 
+                        border_color = "#DAA520"
+                        text_color = "#5D4037"
+                        
+                        if q_id in progress:
+                            if progress[q_id].get("acertou"):
+                                bg_color = "#D4EDDA" # Verde Acerto
+                                border_color = "#28A745"
+                                text_color = "#155724"
+                            else:
+                                bg_color = "#F8D7DA" # Vermelho Erro
+                                border_color = "#DC3545"
+                                text_color = "#721C24"
+                                
+                        grid_html += f"""
+                        <div title='Questão {i}' style='width: 32px; height: 32px; background-color: {bg_color}; border: 1px solid {border_color}; 
+                                    border-radius: 6px; display: flex; align-items: center; justify-content: center; 
+                                    font-weight: bold; color: {text_color}; font-size: 0.85em; box-shadow: 0 1px 3px rgba(0,0,0,0.1);'>
+                            {i}
+                        </div>
+                        """
+                    grid_html += "</div>"
+                    st.markdown(grid_html, unsafe_allow_html=True)
+                
+                st.markdown("---")
+                
+                # --- NAVEGAÇÃO ENTRE QUESTÕES ---
+                nav_key = f"nav_{selected_sim_key}"
+                if nav_key not in st.session_state:
+                    st.session_state[nav_key] = 1
+                
+                c_prev, c_sel_q, c_next = st.columns([1, 2, 1])
+                with c_prev:
+                    if st.button("⬅️ Questão Anterior", use_container_width=True) and st.session_state[nav_key] > 1:
+                        st.session_state[nav_key] -= 1
+                        st.rerun()
+                with c_sel_q:
+                    selected_q_idx = st.selectbox(
+                        "Ir para a questão:", 
+                        range(1, len(questoes) + 1), 
+                        format_func=lambda x: f"Mover para Questão {x}", 
+                        index=st.session_state[nav_key]-1, 
+                        label_visibility="collapsed"
+                    )
+                    if selected_q_idx != st.session_state[nav_key]:
+                        st.session_state[nav_key] = selected_q_idx
+                        st.rerun()
+                with c_next:
+                    if st.button("Próxima Questão ➡️", use_container_width=True) and st.session_state[nav_key] < len(questoes):
+                        st.session_state[nav_key] += 1
+                        st.rerun()
+                        
+                # --- RENDERIZAÇÃO DA QUESTÃO ATUAL ---
+                current_q_idx = st.session_state[nav_key] - 1
+                q_data = questoes[current_q_idx]
+                q_id = str(q_data.get("id", current_q_idx + 1))
+                gabarito = q_data.get("resposta_correta")
+                is_answered = q_id in progress
+                
+                st.markdown(f"""
+                <div style='background-color: #F5F4EF; border: 2px solid #DAA520; border-radius: 8px; padding: 25px; margin-top: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);'>
+                    <div style='display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid #E3DFD3; padding-bottom: 10px; margin-bottom: 15px;'>
+                        <h5 style='color: #9E0000; margin: 0;'>Questão {current_q_idx + 1}</h5>
+                        <span style='color: #8C7B75; font-size: 0.8em;'>ID: {q_id}</span>
+                    </div>
+                    <p style='font-size: 1.15em; color: #5D4037; line-height: 1.6;'>{q_data.get("enunciado")}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.write("") # Espaço
+
+                # Lógica da Trava de Segurança
+                default_idx = None
+                if is_answered:
+                    resp_salva = progress[q_id].get("resposta")
+                    default_idx = 0 if resp_salva == "Certo" else 1
+
+                user_resp = st.radio(
+                    "Sua Tática:", 
+                    ["Certo", "Errado"], 
+                    index=default_idx, 
+                    disabled=is_answered, # Desabilita se já respondeu
+                    key=f"radio_{selected_sim_key}_{q_id}"
+                )
+                
+                if not is_answered:
+                    if st.button("⚔️ Golpear (Responder)", type="primary", key=f"btn_resp_{selected_sim_key}_{q_id}"):
+                        if user_resp:
+                            acertou = (user_resp == gabarito)
+                            progress[q_id] = {
+                                "resposta": user_resp,
+                                "acertou": acertou
+                            }
+                            save_current_user_data()
+                            st.rerun()
+                        else:
+                            st.warning("Selecione sua arma ('Certo' ou 'Errado') antes de golpear.")
+                else:
+                    # Feedbacks e Justificativas só aparecem pós-bloqueio
+                    acertou = progress[q_id].get("acertou")
+                    if acertou:
+                        st.success(f"**Acerto Glorioso!** O gabarito é **{gabarito}**.")
+                    else:
+                        st.error(f"**Golpe Falho.** Sua resposta foi '{progress[q_id].get('resposta')}', mas o correto era **{gabarito}**.")
+                    
+                    st.markdown(f"""
+                    <div style='background-color: #E3DFD3; border-left: 4px solid #DAA520; padding: 15px; border-radius: 4px; color: #5D4037;'>
+                        <strong>📖 Pergaminho de Justificativa:</strong><br>{q_data.get('justificativa')}
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                # --- VERIFICAÇÃO DE FINALIZAÇÃO E RELATÓRIO ---
+                # Garante que não conte chaves estruturais como respostas
+                answered_count = sum(1 for k in progress.keys() if k != "log_salvo_no_diario")
+                
+                if answered_count == len(questoes) and len(questoes) > 0:
+                    st.markdown("<br><hr style='border: 1px solid #DAA520;'>", unsafe_allow_html=True)
+                    acertos = sum(1 for k, v in progress.items() if k != "log_salvo_no_diario" and v.get("acertou"))
+                    total_q = len(questoes)
+                    pct = (acertos / total_q) * 100
+                    
+                    st.markdown(f"""
+                    <div style='background: linear-gradient(135deg, #E3DFD3, #F5F4EF); border: 2px solid #9E0000; border-radius: 12px; padding: 25px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1);'>
+                        <h2 style='color: #9E0000; margin: 0;'>🛡️ Batalha Concluída!</h2>
+                        <p style='font-size: 1.3em; color: #5D4037; margin-top: 15px;'>
+                            Seu desempenho: <strong>{acertos}</strong> acertos de <strong>{total_q}</strong> embates ({pct:.1f}%).
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    st.write("")
+                    if progress.get("log_salvo_no_diario"):
+                        st.success("✅ O saldo desta batalha já foi forjado em seu Diário e a sua Árvore da Constância foi regada!")
+                    else:
+                        if st.button("💾 Gravar Conquista no Diário e Regar a Árvore", type="primary", use_container_width=True):
+                            d_str = get_today_br().strftime("%Y-%m-%d")
+                            q_details = {sim_materia: total_q}
+                            
+                            new_log = {
+                                "data": d_str, 
+                                "acordou": "06:00", 
+                                "dormiu": "22:00", 
+                                "paginas": 0, 
+                                "series": 0, 
+                                "questoes": total_q, 
+                                "questoes_detalhadas": q_details, 
+                                "estudou": True
+                            }
+                            
+                            exists = False
+                            for idx, l in enumerate(user_data['logs']):
+                                if l['data'] == new_log['data']:
+                                    user_data['logs'][idx]['questoes'] = user_data['logs'][idx].get('questoes', 0) + total_q
+                                    user_data['logs'][idx]['estudou'] = True
+                                    if sim_materia not in user_data['logs'][idx]['questoes_detalhadas']:
+                                        user_data['logs'][idx]['questoes_detalhadas'][sim_materia] = 0
+                                    user_data['logs'][idx]['questoes_detalhadas'][sim_materia] += total_q
+                                    exists = True
+                                    break
+                            
+                            if not exists:
+                                user_data['logs'].append(new_log)
+                                user_data['tree_branches'] += 1 # Regra da Árvore alimentada!
+                            
+                            progress["log_salvo_no_diario"] = True
+                            save_current_user_data()
+                            st.success("Conquista forjada com sucesso! A Glória o aguarda.")
+                            time.sleep(2)
+                            st.rerun()
+
+    # --- TAB 9: ADMIN (SE TIVER PERMISSÃO) ---
     if user == ADMIN_USER:
-        with tabs[7]:
+        with tabs[8]:
             st.header("🛡️ Moderação")
             ca, cd = st.columns(2)
             with ca:
