@@ -1,0 +1,62 @@
+[
+  {
+    "id": "1",
+    "enunciado": "Com a vigência da Lei 14.133, a modalidade de convite foi extinta, consolidando-se o edital como o único instrumento convocatório, devendo o processo seguir rigorosamente o que nele está estabelecido.",
+    "resposta_correta": "Certo",
+    "justificativa": "O princípio da vinculação ao edital torna sua observância obrigatória. Conforme o texto: \"com a Lei 14.133, a modalidade de convite foi extinta, restando apenas o edital como instrumento convocatório\"."
+  },
+  {
+    "id": "2",
+    "enunciado": "A matriz de alocação de riscos, estabelecida na fase interna e incluída no edital, tem o objetivo de compartilhar entre o contratado e a administração pública apenas os riscos que são previstos e presumíveis.",
+    "resposta_correta": "Certo",
+    "justificativa": "Riscos imprevisíveis não entram nesta partilha. Conforme o texto: \"A matriz de alocação de riscos presente no contrato compartilha os riscos entre o particular e a administração pública, mas apenas aqueles que são previstos e presumíveis\"."
+  },
+  {
+    "id": "3",
+    "enunciado": "Nos contratos em que a Administração Pública entrega bens ao contratado para guarda e conservação, o valor correspondente a esses bens não afeta o montante da garantia exigida para a contratação.",
+    "resposta_correta": "Errado",
+    "justificativa": "A legislação exige acréscimo para proteger o patrimônio público. Conforme o texto: \"o valor dos bens que serão depositados sob a responsabilidade do contratado deve ser acrescido ao valor da garantia exigida para o contrato.\""
+  },
+  {
+    "id": "4",
+    "enunciado": "A ocupação provisória de bens e serviços, para evitar a paralisação de obra após rescisão de contrato, aplica-se exclusivamente aos contratos administrativos comuns, sendo vedada nas concessões de serviço público.",
+    "resposta_correta": "Errado",
+    "justificativa": "A prerrogativa de ocupação provisória é ampla. Conforme o texto da imagem: \"Essa ocupação provisória pode ocorrer tanto em contratos administrativos comuns, como no caso de obras, quanto em concessões de serviço público.\""
+  },
+  {
+    "id": "5",
+    "enunciado": "A legislação proíbe a subcontratação integral, ou seja, a transferência de todo o objeto do contrato para terceiros, prática que configuraria uma fraude à licitação e dificultaria a fiscalização adequada.",
+    "resposta_correta": "Certo",
+    "justificativa": "A subcontratação integral desvirtua a finalidade do processo licitatório. Conforme o texto: \"Ou seja, a empresa não pode repassar todo o objeto do contrato para terceiros. Isso seria uma fraude à licitação\"."
+  },
+  {
+    "id": "6",
+    "enunciado": "Nos contratos de dedicação exclusiva de mão de obra, a administração pública assume uma responsabilidade diferenciada, respondendo solidariamente pelos encargos trabalhistas e subsidiariamente pelos previdenciários.",
+    "resposta_correta": "Errado",
+    "justificativa": "A ordem das responsabilidades estabelecida em lei foi invertida na questão. Conforme o texto, a administração \"responde solidariamente pelos encargos previdenciários e subsidiariamente pelos encargos trabalhistas.\""
+  },
+  {
+    "id": "7",
+    "enunciado": "O princípio do planejamento, expresso na nova Lei de Licitações, exige que os processos licitatórios e contratações sejam precedidos de análise prévia e alinhados ao planejamento estratégico do respectivo órgão.",
+    "resposta_correta": "Certo",
+    "justificativa": "A nova lei consolidou essa obrigatoriedade formalmente. Conforme o texto: \"Este princípio enfatiza a importância da administração pública realizar licitações e contratações de maneira alinhada ao planejamento estratégico e orçamentário da respectiva entidade ou órgão.\""
+  },
+  {
+    "id": "8",
+    "enunciado": "A subcontratação parcial é estritamente proibida nos contratos administrativos, devendo a empresa contratada executar a totalidade da obra ou serviço, mesmo que lhe faltem equipamentos ou qualificação técnica.",
+    "resposta_correta": "Errado",
+    "justificativa": "Embora a integral seja proibida, partes específicas podem ser subcontratadas. Conforme o texto: \"No entanto, o que pode ocorrer é uma subcontratação parcial, sendo permitida apenas essa modalidade parcial.\""
+  },
+  {
+    "id": "9",
+    "enunciado": "A possibilidade de utilizar meios alternativos de resolução de controvérsias, como arbitragem e conciliação, é uma prática que já estava amplamente prevista e expressa na antiga Lei 8.666/1993.",
+    "resposta_correta": "Errado",
+    "justificativa": "Os métodos adequados de resolução representam uma novidade da nova legislação. Conforme o texto: \"Esta é uma inovação relevante, uma vez que a antiga Lei 8.666/1993 não contemplava tal possibilidade.\""
+  },
+  {
+    "id": "10",
+    "enunciado": "O princípio da transparência garante que os processos licitatórios sejam abertos ao escrutínio público, permitindo o controle social e a fiscalização, de modo que a licitação não deve ser realizada sob sigilo.",
+    "resposta_correta": "Certo",
+    "justificativa": "A publicidade ampla possibilita a auditoria da sociedade e dos órgãos de controle. O texto diz: \"reforçando a ideia de que a licitação, como um procedimento administrativo fundamental, não pode e não deve ser realizada sob sigilo.\""
+  }
+]
