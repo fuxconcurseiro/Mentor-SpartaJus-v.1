@@ -1,0 +1,62 @@
+[
+  {
+    "id": "1",
+    "enunciado": "Na contratação semi-integrada, a administração pública delega a uma única empresa a responsabilidade pela elaboração do projeto básico, do projeto executivo e da execução integral da obra.",
+    "resposta_correta": "Errado",
+    "justificativa": "A assertiva está incorreta, pois na modalidade semi-integrada a mesma empresa não faz o projeto básico e a execução. O texto afirma expressamente: \"uma empresa é responsável pelo projeto básico, enquanto outra fica encarregada do projeto executivo e da execução da obra\"."
+  },
+  {
+    "id": "2",
+    "enunciado": "A elaboração do projeto básico e da planilha orçamentária é de competência exclusiva e indelegável da própria administração pública, sendo expressamente vedada a contratação de empresa terceirizada.",
+    "resposta_correta": "Errado",
+    "justificativa": "A assertiva está errada, pois a administração não é obrigada a fazer o projeto internamente. Conforme o material: \"A administração pública pode optar por desenvolver esse projeto internamente ou contratar uma empresa terceirizada para fazê-lo.\""
+  },
+  {
+    "id": "3",
+    "enunciado": "Nos contratos de execução de obras, o encerramento do vínculo contratual ocorre com a finalização da obra pelo particular, não sendo estritamente necessário aguardar o término de um prazo determinado se a obra já foi concluída.",
+    "resposta_correta": "Certo",
+    "justificativa": "A afirmativa está correta, pois o fim do contrato decorre da finalização da obra, que marca o cumprimento do objeto. Segundo o texto: \"o término do contrato de execução de obra não está apenas vinculado ao tempo, mas sim à conclusão da própria obra.\""
+  },
+  {
+    "id": "4",
+    "enunciado": "Nos contratos administrativos, o particular contratado não possui margem para rediscutir as cláusulas estipuladas pelo Poder Público, tratando-se, portanto, de um contrato de adesão.",
+    "resposta_correta": "Certo",
+    "justificativa": "A afirmativa está correta, evidenciando o padrão de adesão contratual. O texto base ressalta que \"não há espaço para a rediscussão das cláusulas por parte do contratante\", cabendo ao particular apenas aceitar ou recusar."
+  },
+  {
+    "id": "5",
+    "enunciado": "As cláusulas exorbitantes conferem ao particular contratado os mesmos poderes da administração pública, garantindo a igualdade e simetria de forças entre as partes no contrato administrativo.",
+    "resposta_correta": "Errado",
+    "justificativa": "A assertiva está errada, visto que as cláusulas exorbitantes geram desigualdade proposital em favor do Estado. Conforme a imagem, a administração possui poderes que \"a colocam em uma posição superior em relação ao particular contratado\"."
+  },
+  {
+    "id": "6",
+    "enunciado": "Nos contratos administrativos de prestação de serviço, o objeto contratual é atemporal, não havendo a necessidade obrigatória de estipulação de um prazo definido para a sua conclusão.",
+    "resposta_correta": "Errado",
+    "justificativa": "A afirmação é incorreta. O contrato de prestação de serviços exige prazo estipulado e fim demarcado. O texto aponta que o serviço é \"prestado por um período determinado, ou seja, o objeto desse contrato é temporal, com um prazo definido para sua conclusão.\""
+  },
+  {
+    "id": "7",
+    "enunciado": "O projeto executivo vai além do planejamento inicial do projeto básico, direcionando-se para a execução em si, estabelecendo um cronograma detalhado, metas e prazos de conclusão das etapas da obra.",
+    "resposta_correta": "Certo",
+    "justificativa": "A afirmativa está correta, pois a fase executiva aprofunda o planejamento e organiza as ações práticas. O texto confirma que \"Enquanto o projeto básico trata do planejamento inicial da obra, o projeto executivo direciona-se para a execução em si.\""
+  },
+  {
+    "id": "8",
+    "enunciado": "A contratação de pronta entrega caracteriza-se pela entrega imediata do bem no momento do acordo, não havendo obrigações futuras, situação que é aplicável independentemente do valor da contratação.",
+    "resposta_correta": "Certo",
+    "justificativa": "A afirmação está correta, caracterizando o acordo pela imediatidade e ausência de restrições financeiras. O texto é claro ao afirmar que \"não há obrigação futura de entrega do bem. Independentemente do valor envolvido\"."
+  },
+  {
+    "id": "9",
+    "enunciado": "No contrato administrativo de entrega de bens, a conclusão do objeto ocorre exclusivamente pelo decurso do tempo estipulado, sendo irrelevante o momento da efetiva entrega do material pelo contratado.",
+    "resposta_correta": "Errado",
+    "justificativa": "A assertiva é falsa, pois o tempo não é o fator isolado ou primário para a conclusão desta espécie de contrato. O material ensina claramente que: \"A conclusão do objeto desse contrato não se dá apenas pelo tempo, mas sim pela efetiva entrega do bem.\""
+  },
+  {
+    "id": "10",
+    "enunciado": "Na contratação integrada, todas as etapas são delegadas a uma única empresa; contudo, a administração pública possui a obrigação de criar um projeto preliminar (anteprojeto) antes dessa delegação.",
+    "resposta_correta": "Certo",
+    "justificativa": "A afirmação está correta, demonstrando que há um requisito prévio obrigatório por parte da administração, mesmo com a aglutinação das etapas. Como consta no material: \"é necessário que ela elabore um anteprojeto antes de delegar as três etapas para a empresa contratada.\""
+  }
+]

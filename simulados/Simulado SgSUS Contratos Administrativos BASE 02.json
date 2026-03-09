@@ -1,0 +1,62 @@
+[
+  {
+    "id": "1",
+    "enunciado": "Na contratação de obras e serviços de engenharia, independentemente do vulto, a administração pública possui a prerrogativa de exigir que a garantia seja prestada exclusivamente na modalidade de seguro-garantia.",
+    "resposta_correta": "Certo",
+    "justificativa": "A afirmativa está correta. Apesar de a regra geral permitir que a contratada escolha a garantia, há essa prerrogativa para a administração. O texto diz: \"a administração pública pode exigir a modalidade seguro-garantia.\""
+  },
+  {
+    "id": "2",
+    "enunciado": "A repactuação contratual é o mecanismo utilizado pela administração pública para manter o equilíbrio econômico-financeiro quando há variação dos custos em contratos com regime de dedicação exclusiva ou predominância de mão de obra.",
+    "resposta_correta": "Certo",
+    "justificativa": "A afirmativa está correta, pois a repactuação é o instrumento adequado para estes regimes específicos. O material afirma que: \"A repactuação é para quando houver o regime de dedicação exclusiva de mão de obra ou predominância de mão de obra.\""
+  },
+  {
+    "id": "3",
+    "enunciado": "A regra geral na administração pública permite a celebração de contratos verbais, sendo considerados nulos apenas aqueles cujos valores ultrapassem R$ 12.545,11.",
+    "resposta_correta": "Errado",
+    "justificativa": "A afirmativa está incorreta. A regra primária é a proibição total de contratos verbais, sendo os de baixo valor e pronto pagamento apenas uma exceção. Conforme o material: \"A lei estabelece que os contratos verbais celebrados pela administração pública são nulos e sem efeito, essa é a regra.\""
+  },
+  {
+    "id": "4",
+    "enunciado": "A recomposição ou revisão de preços é aplicada para lidar com os aumentos de custos que já eram esperados pelas partes, como a inflação regular e a correção monetária anual.",
+    "resposta_correta": "Errado",
+    "justificativa": "A afirmativa está incorreta, visto que a recomposição destina-se a fatos supervenientes e extraordinários, e não aos previsíveis. A imagem esclarece que: \"No entanto, a recomposição ou revisão vai além do esperado. Envolve situações imprevistas, como um caso de força maior, algo que não poderíamos prever.\""
+  },
+  {
+    "id": "5",
+    "enunciado": "A divulgação do contrato no Portal Nacional de Contratações Públicas (PNCP) pode ser dispensada, mantendo-se o contrato sob sigilo, quando tal medida for estritamente necessária para garantir a segurança da sociedade e do Estado.",
+    "resposta_correta": "Certo",
+    "justificativa": "A afirmativa está correta. Embora a regra seja a publicação no PNCP como condição de eficácia, existe esta exceção legal protetiva. Conforme a imagem: \"Os contratos e seus aditivos podem permanecer sob sigilo, caso seja imprescindível para a segurança da sociedade e do Estado.\""
+  },
+  {
+    "id": "6",
+    "enunciado": "O desenvolvimento de programas, aplicações de internet (software) e suas documentações técnicas associadas não são classificados pela Lei 14.133/21 como contratações de projetos ou serviços técnicos especializados.",
+    "resposta_correta": "Errado",
+    "justificativa": "A afirmativa está incorreta. A legislação enquadra explicitamente o desenvolvimento de software nessa exata categoria. Conforme o documento: \"trata das contratações de projetos ou serviços técnicos especializados, incluindo aqueles que envolvem o desenvolvimento de programas e aplicações de internet\"."
+  },
+  {
+    "id": "7",
+    "enunciado": "O \"Fato do Príncipe\" caracteriza-se por uma atuação do Poder Público que, embora seja lícita e ocorra fora do âmbito direto do contrato, afeta o seu equilíbrio econômico, como o aumento geral da alíquota de um tributo.",
+    "resposta_correta": "Certo",
+    "justificativa": "A afirmativa está correta. Diferentemente do Fato da Administração, o Fato do Príncipe é lícito, geral e externo. Como demonstrado no texto da imagem: \"Administração atua legalmente fora do contrato, mas acaba gerando desequilíbrio nele\"."
+  },
+  {
+    "id": "8",
+    "enunciado": "O \"Fato da Administração\" ocorre quando o Poder Público pratica uma conduta legal e externa ao contrato administrativo, mas que acaba gerando um desequilíbrio indireto na execução da avença pela contratada.",
+    "resposta_correta": "Errado",
+    "justificativa": "A afirmativa está incorreta porque o Fato da Administração envolve uma conduta interna ao contrato e de natureza ilegal (ou irregular em relação ao pactuado). Conforme o texto: \"Administração adota conduta comissiva ou omissiva ilegal dentro do contrato\"."
+  },
+  {
+    "id": "9",
+    "enunciado": "A cláusula que estabelece o índice de reajustamento de preço só é obrigatória em contratos com prazo de duração superior a doze meses, sendo dispensada em contratações de curto prazo.",
+    "resposta_correta": "Errado",
+    "justificativa": "A afirmativa está incorreta. A exigência legal aplica-se independentemente do tempo de vigência contratual estipulado pelas partes. O texto é claro ao dispor que: \"Independentemente do prazo de duração, o contrato deverá conter cláusula que estabeleça o índice de reajustamento de preço\"."
+  },
+  {
+    "id": "10",
+    "enunciado": "A aplicação da teoria da imprevisão justifica a recomposição ou revisão dos termos do contrato administrativo diante da ocorrência de situações excepcionais e inesperadas que fogem do controle das partes.",
+    "resposta_correta": "Certo",
+    "justificativa": "A afirmativa está correta. A teoria visa proteger o contrato contra colapsos gerados por áleas extraordinárias. Conforme destacado na imagem: \"Na teoria da imprevisão, encontramos situações que fogem do controle das partes envolvidas. São eventos inesperados e excepcionais que justificam uma revisão nos termos do contrato.\""
+  }
+]
